@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package goproxy serves Go modules from a proxy
+Package goproxytest serves Go modules from a proxy
 server designed to run on localhost during tests, both to make tests avoid
 requiring specific network servers and also to make them
 significantly faster.
@@ -20,7 +20,7 @@ the prefix, like plain "go.mod", "x.go", and so on.
 See ../cmd/txtar-addmod and ../cmd/txtar-savedir for tools
 generate txtar files, although it's fine to write them by hand.
 */
-package goproxy
+package goproxytest
 
 import (
 	"archive/zip"
@@ -50,6 +50,7 @@ var (
 
 type Server struct {
 	URL          string
+	dir          string
 	listener     net.Listener
 	modList      []module.Version
 	zipCache     par.Cache
@@ -62,19 +63,22 @@ type Server struct {
 // localhost port. If dir is empty, "testmod" will be used.
 func NewServer(dir, addr string) (*Server, error) {
 	var srv Server
-	srv.readModList()
 	if addr == "" {
 		addr = "localhost:0"
 	}
 	if dir == "" {
 		dir = "testmod"
 	}
+	srv.dir = dir
+	if err := srv.readModList(); err != nil {
+		return nil, fmt.Errorf("cannot read modules: %v", err)
+	}
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot listen on %q: %v", addr, err)
 	}
 	addr = l.Addr().String()
-	srv.URL = "http://" + *proxyAddr + "/mod"
+	srv.URL = "http://" + addr + "/mod"
 	go func() {
 		log.Printf("go proxy: http.Serve: %v", http.Serve(l, http.HandlerFunc(srv.handler)))
 	}()
@@ -82,7 +86,7 @@ func NewServer(dir, addr string) (*Server, error) {
 }
 
 func (srv *Server) readModList() error {
-	infos, err := ioutil.ReadDir("testdata/mod")
+	infos, err := ioutil.ReadDir(srv.dir)
 	if err != nil {
 		return err
 	}
@@ -255,8 +259,6 @@ func (srv *Server) findHash(m module.Version) string {
 	return info.Short
 }
 
-var cmdGoDir, _ = os.Getwd()
-
 func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	enc, err := module.EncodePath(path)
 	if err != nil {
@@ -270,7 +272,7 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	}
 
 	prefix := strings.Replace(enc, "/", "_", -1)
-	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
+	name := filepath.Join(srv.dir, prefix+"_"+encVers+".txt")
 	a := srv.archiveCache.Do(name, func() interface{} {
 		a, err := txtar.ParseFile(name)
 		if err != nil {
