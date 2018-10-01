@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kr/pretty"
 	"github.com/rogpeppe/modinternal/par"
 	"github.com/rogpeppe/modinternal/testenv"
 	"github.com/rogpeppe/modinternal/txtar"
@@ -91,6 +90,7 @@ func Run(t *testing.T, p Params) {
 				testTempDir: testTempDir,
 				name:        name,
 				file:        file,
+				params:      p,
 			}
 			ts.setup()
 			if !p.TestWork {
@@ -135,7 +135,8 @@ func (ts *TestScript) setup() {
 	ts.Check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
 	env := &Env{
 		Vars: []string{
-			"WORK=" + ts.workdir, // must be first for ts.abbrev (??)
+			"WORK=" + ts.workdir, // must be first for ts.abbrev
+			"PATH=" + os.Getenv("PATH"),
 			homeEnvName() + "=/no-home",
 			tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 			"devnull=" + os.DevNull,
@@ -188,11 +189,8 @@ func (ts *TestScript) run() {
 	// Unpack archive.
 	a, err := txtar.ParseFile(ts.file)
 	ts.Check(err)
-	pretty.Println("txtar files from ", ts.file, a)
-	log.Printf("comment: %q", a.Comment)
 	for _, f := range a.Files {
 		name := ts.MkAbs(ts.expand(f.Name))
-		log.Printf("create %q", name)
 		ts.Check(os.MkdirAll(filepath.Dir(name), 0777))
 		ts.Check(ioutil.WriteFile(name, f.Data, 0666))
 	}
@@ -284,6 +282,7 @@ Script:
 		// Run command.
 		cmd := scriptCmds[args[0]]
 		if cmd == nil {
+			log.Printf("looking at params.Cmds %#v", ts.params.Cmds)
 			cmd = ts.params.Cmds[args[0]]
 		}
 		if cmd == nil {
@@ -369,6 +368,20 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 	cmd.Stderr = &stderrBuf
 	err = cmd.Run()
 	return stdoutBuf.String(), stderrBuf.String(), err
+}
+
+// Exec runs the given command and saves its stdout and stderr so
+// they can be inspected by subsequent script commands.
+func (ts *TestScript) Exec(command string, args ...string) error {
+	var err error
+	ts.stdout, ts.stderr, err = ts.exec(command, args...)
+	if ts.stdout != "" {
+		ts.Logf("[stdout]\n%s", ts.stdout)
+	}
+	if ts.stderr != "" {
+		ts.Logf("[stderr]\n%s", ts.stderr)
+	}
+	return err
 }
 
 // expand applies environment variable expansion to the string s.
