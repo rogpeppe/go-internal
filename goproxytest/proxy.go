@@ -61,6 +61,8 @@ type Server struct {
 // network address. It serves modules taken from the given directory
 // name. If addr is empty, it will listen on an arbitrary
 // localhost port. If dir is empty, "testmod" will be used.
+//
+// The returned Server should be closed after use.
 func NewServer(dir, addr string) (*Server, error) {
 	var srv Server
 	if addr == "" {
@@ -83,6 +85,11 @@ func NewServer(dir, addr string) (*Server, error) {
 		log.Printf("go proxy: http.Serve: %v", http.Serve(l, http.HandlerFunc(srv.handler)))
 	}()
 	return &srv, nil
+}
+
+// Close shuts down the proxy.
+func (srv *Server) Close() {
+	srv.listener.Close()
 }
 
 func (srv *Server) readModList() error {

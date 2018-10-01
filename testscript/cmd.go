@@ -208,14 +208,7 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 	if len(args) < 1 {
 		ts.Fatalf("usage: exec program [args...]")
 	}
-	var err error
-	ts.stdout, ts.stderr, err = ts.exec(args[0], args[1:]...)
-	if ts.stdout != "" {
-		ts.Logf("[stdout]\n%s", ts.stdout)
-	}
-	if ts.stderr != "" {
-		ts.Logf("[stderr]\n%s", ts.stderr)
-	}
+	err := ts.Exec(args[0], args[1:]...)
 	if err != nil {
 		ts.Logf("[%v]\n", err)
 		if !neg {
