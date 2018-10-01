@@ -12,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -282,7 +281,6 @@ Script:
 		// Run command.
 		cmd := scriptCmds[args[0]]
 		if cmd == nil {
-			log.Printf("looking at params.Cmds %#v", ts.params.Cmds)
 			cmd = ts.params.Cmds[args[0]]
 		}
 		if cmd == nil {
