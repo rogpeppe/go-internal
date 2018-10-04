@@ -13,34 +13,6 @@ import (
 	"strings"
 )
 
-// RegisterCommand registers the given function to be called within a new process
-// when a script tries to run a command with the given name.
-// It should be called within a TestMain function before calling
-// m.Run.
-//
-// The test binary itself will be used as the executable binary.
-// When invoked inside the subprocess, this function may not return.
-func RegisterCommand(name string, f func()) {
-	if _, ok := scriptCmds[name]; ok {
-		panic("command " + name + " registered twice")
-	}
-	if os.Getenv("TESTSCRIPT_COMMAND") == name {
-		// The command being registered is being invoked, so run it and exit.
-		os.Args[0] = name
-		f()
-		os.Exit(0)
-	}
-	scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
-		path, err := os.Executable()
-		if err != nil {
-			ts.Fatalf("cannot determine path to test binary: %v", err)
-		}
-		ts.env = append(ts.env, "TESTSCRIPT_COMMAND="+name)
-		ts.cmdExec(neg, append([]string{path}, args...))
-		ts.env = ts.env[0 : len(ts.env)-1]
-	}
-}
-
 // scriptCmds are the script command implementations.
 // Keep list and the implementations below sorted by name.
 //
