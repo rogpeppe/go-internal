@@ -190,9 +190,14 @@ func (nopTestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
 func (nopTestDeps) ImportPath() string {
 	return ""
 }
-
 func (nopTestDeps) StartTestLog(w io.Writer) {}
 
 func (nopTestDeps) StopTestLog() error {
+	return nil
+}
+
+// Note: WriteHeapProfile is needed for Go 1.10 but not Go 1.11.
+func (nopTestDeps) WriteHeapProfile(io.Writer) error {
+	// Not needed for Go 1.10.
 	return nil
 }
