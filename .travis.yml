@@ -1,0 +1,5 @@
+language: go
+go_import_path: github.com/rogpeppe/modinternal
+go: 
+  - "1.11"
+script: go test ./...
