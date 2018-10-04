@@ -11,19 +11,21 @@ import (
 	"testing"
 )
 
-func printArgs() {
+func printArgs() int {
 	fmt.Printf("%q\n", os.Args)
+	return 0
 }
 
-func exitWithStatus() {
+func exitWithStatus() int {
 	n, _ := strconv.Atoi(os.Args[1])
-	os.Exit(n)
+	return n
 }
 
 func TestMain(m *testing.M) {
-	RegisterCommand("printargs", printArgs)
-	RegisterCommand("status", exitWithStatus)
-	os.Exit(m.Run())
+	os.Exit(RunMain(m, map[string]func() int{
+		"printargs": printArgs,
+		"status":    exitWithStatus,
+	}))
 }
 
 func TestSimple(t *testing.T) {

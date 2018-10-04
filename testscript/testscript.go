@@ -65,6 +65,13 @@ type Params struct {
 	// TestWork specifies that working directories should be
 	// left intact for later inspection.
 	TestWork bool
+
+	// IgnoreMissedCoverage specifies that if coverage information
+	// is being generated (with the -test.coverprofile flag) and a subcommand
+	// function passed to RunMain fails to generate coverage information
+	// (for example because the function invoked os.Exit), then the
+	// error will be ignored.
+	IgnoreMissedCoverage bool
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
