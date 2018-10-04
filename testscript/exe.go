@@ -8,8 +8,6 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
-
-	"gopkg.in/errgo.v2/fmt/errors"
 )
 
 var profileId int32 = 0
@@ -41,10 +39,11 @@ func IgnoreMissedCoverage() {
 //
 // This function returns an exit code to pass to os.Exit, after calling m.Run.
 func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
+	goCoverProfileMerge()
 	cmdName := os.Getenv("TESTSCRIPT_COMMAND")
 	if cmdName == "" {
 		defer func() {
-			if err := mergeCoverProfiles(); err != nil {
+			if err := finalizeCoverProfile(); err != nil {
 				log.Printf("cannot merge cover profiles: %v", err)
 				exitCode = 2
 			}
@@ -58,12 +57,26 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 					ts.Fatalf("cannot determine path to test binary: %v", err)
 				}
 				id := atomic.AddInt32(&profileId, 1) - 1
+				oldEnvLen := len(ts.env)
+				cprof := coverFilename(id)
 				ts.env = append(ts.env,
 					"TESTSCRIPT_COMMAND="+name,
-					"TESTSCRIPT_COVERPROFILE="+coverFilename(id),
+					"TESTSCRIPT_COVERPROFILE="+cprof,
 				)
 				ts.cmdExec(neg, append([]string{path}, args...))
-				ts.env = ts.env[0 : len(ts.env)-1]
+				ts.env = ts.env[0:oldEnvLen]
+				if cprof == "" {
+					return
+				}
+				f, err := os.Open(cprof)
+				if err != nil {
+					if ignoreMissedCoverage {
+						return
+					}
+					ts.Fatalf("command %s (args %q) failed to generate coverage information", name, args)
+					return
+				}
+				coverChan <- f
 			}
 		}
 		return m.Run()
@@ -81,51 +94,6 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 		return mainf()
 	}
 	return runCoverSubcommand(cprof, mainf)
-}
-
-func mergeCoverProfiles() error {
-	cprof := coverProfile()
-	if cprof == "" {
-		return nil
-	}
-	// Note: it would be nice to merge profiles as they're produced, but
-	// we can't write to the main profile until after the top level test
-	// script has completed and written its coverage profile.
-	//
-	// What we could do instead is merge the coverage info into a single
-	// in-memory version - we can be reasonably efficient because
-	// we can assume that for a given file, all the blocks are in the same order,
-	// so we can easily reverse the file format into the testing.Cover struct.
-
-	f, err := os.OpenFile(cprof, os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		return errors.Notef(err, nil, "cannot append to existing cover profile")
-	}
-	defer f.Close()
-
-	// Use atomic because a timed out test might still potentially be running.
-	n := atomic.LoadInt32(&profileId)
-	failed := int32(0)
-	for i := int32(0); i < n; i++ {
-		if err := mergeCoverProfile(f, coverFilename(i)); err != nil {
-			if !ignoreMissedCoverage {
-				log.Printf("failed to include cover profile for invocation %d: %v", i, err)
-				failed++
-			}
-		}
-	}
-	if err := f.Close(); err != nil {
-		return errors.Notef(err, nil, "cannot close %v", coverProfile())
-	}
-	if failed > 0 {
-		return errors.Newf("%d/%d invocations failed to produce profiles", failed, n)
-	}
-	// TODO print new coverage summary, so we get test output like:
-	// PASS
-	// coverage: 0.2% of statements
-	// ok  	github.com/rogpeppe/gohack	0.904s
-	// total coverage: 75% of statements
-	return nil
 }
 
 // runCoverSubcommand runs the given function, then writes any generated
@@ -202,28 +170,6 @@ func coverProfile() string {
 
 func setCoverProfile(cprof string) {
 	coverProfileFlag().Set(cprof)
-}
-
-// mergeCoverProfile merges the given profile by writing it to w.
-func mergeCoverProfile(w io.Writer, file string) error {
-	expect := fmt.Sprintf("mode: %s\n", testing.CoverMode())
-	buf := make([]byte, len(expect))
-	r, err := os.Open(file)
-	if err != nil {
-		// Test did not create profile
-		return err
-	}
-	defer r.Close()
-
-	n, err := io.ReadFull(r, buf)
-	if n == 0 || err != nil || string(buf) != expect {
-		return errors.Newf("cannot read cover profile header from %q", file)
-	}
-	_, err = io.Copy(w, r)
-	if err != nil {
-		return errors.Notef(err, nil, "cannot copy coverage profile")
-	}
-	return nil
 }
 
 type nopTestDeps struct{}
