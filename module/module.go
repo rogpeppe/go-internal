@@ -24,7 +24,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/rogpeppe/modinternal/semver"
+	"github.com/rogpeppe/go-internal/semver"
 )
 
 // A Version is defined by a module path and version pair.

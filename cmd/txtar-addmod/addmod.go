@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The txtar-addmod command adds a module as a txtar archive to the a testdata module directory
-// as understood by the goproxytest package (see https://godoc.org/github.com/rogpeppe/modinternal/goproxytest).
+// as understood by the goproxytest package (see https://godoc.org/github.com/rogpeppe/go-internal/goproxytest).
 //
 // Usage:
 //
@@ -29,7 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rogpeppe/modinternal/txtar"
+	"github.com/rogpeppe/go-internal/txtar"
 )
 
 func usage() {

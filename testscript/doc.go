@@ -38,7 +38,7 @@ In general script files should have short names: a few words, not whole sentence
 The first word should be the general category of behavior being tested,
 often the name of a subcommand to be tested or a concept (vendor, pattern).
 
-Each script is a text archive (go doc github.com/rogpeppe/modinternal/txtar).
+Each script is a text archive (go doc github.com/rogpeppe/go-internal/txtar).
 The script begins with an actual command script to run
 followed by the content of zero or more supporting files to
 create in the script's temporary file system before it starts executing.

@@ -15,8 +15,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/rogpeppe/modinternal/module"
-	"github.com/rogpeppe/modinternal/semver"
+	"github.com/rogpeppe/go-internal/module"
+	"github.com/rogpeppe/go-internal/semver"
 )
 
 // A File is the parsed, interpreted form of a go.mod file.

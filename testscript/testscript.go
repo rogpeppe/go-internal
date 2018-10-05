@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rogpeppe/modinternal/par"
-	"github.com/rogpeppe/modinternal/testenv"
-	"github.com/rogpeppe/modinternal/txtar"
+	"github.com/rogpeppe/go-internal/par"
+	"github.com/rogpeppe/go-internal/testenv"
+	"github.com/rogpeppe/go-internal/txtar"
 )
 
 var execCache par.Cache
