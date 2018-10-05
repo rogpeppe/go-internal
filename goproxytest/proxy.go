@@ -37,10 +37,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rogpeppe/modinternal/module"
-	"github.com/rogpeppe/modinternal/par"
-	"github.com/rogpeppe/modinternal/semver"
-	"github.com/rogpeppe/modinternal/txtar"
+	"github.com/rogpeppe/go-internal/module"
+	"github.com/rogpeppe/go-internal/par"
+	"github.com/rogpeppe/go-internal/semver"
+	"github.com/rogpeppe/go-internal/txtar"
 )
 
 var (

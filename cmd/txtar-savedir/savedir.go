@@ -8,7 +8,7 @@
 //
 //	txtar-savedir /path/to/dir >saved.txt
 //
-// See https://godoc.org/github.com/rogpeppe/modinternal/txtar for details of the format
+// See https://godoc.org/github.com/rogpeppe/go-internal/txtar for details of the format
 // and how to parse a txtar file.
 //
 package main
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/rogpeppe/modinternal/txtar"
+	"github.com/rogpeppe/go-internal/txtar"
 )
 
 func usage() {

@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/rogpeppe/modinternal/semver"
+	"github.com/rogpeppe/go-internal/semver"
 )
 
 // This code was taken from cmd/go/internal/modfetch/pseudo.go

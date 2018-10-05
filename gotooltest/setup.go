@@ -13,8 +13,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rogpeppe/modinternal/imports"
-	"github.com/rogpeppe/modinternal/testscript"
+	"github.com/rogpeppe/go-internal/imports"
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
 type testContext struct {

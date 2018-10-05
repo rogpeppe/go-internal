@@ -21,7 +21,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/rogpeppe/modinternal/goproxytest"
+	"github.com/rogpeppe/go-internal/goproxytest"
 )
 
 var proxyAddr = flag.String("addr", "", "run proxy on this network address instead of running any tests")
