@@ -24,7 +24,7 @@ import (
 	"github.com/rogpeppe/go-internal/goproxytest"
 )
 
-var proxyAddr = flag.String("addr", "", "run proxy on this network address instead of running any tests")
+var proxyAddr = flag.String("addr", "", "run proxy on this network address")
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: txtar-goproxy [flags] dir\n")
