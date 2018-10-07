@@ -26,7 +26,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -35,17 +34,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
 
 	"github.com/rogpeppe/go-internal/module"
 	"github.com/rogpeppe/go-internal/par"
 	"github.com/rogpeppe/go-internal/semver"
 	"github.com/rogpeppe/go-internal/txtar"
-)
-
-var (
-	proxyAddr = flag.String("proxy", "", "run proxy on this network address instead of running any tests")
-	proxyURL  string
 )
 
 type Server struct {
@@ -283,7 +276,7 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	a := srv.archiveCache.Do(name, func() interface{} {
 		a, err := txtar.ParseFile(name)
 		if err != nil {
-			if testing.Verbose() || !os.IsNotExist(err) {
+			if !os.IsNotExist(err) {
 				fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
 			}
 			a = nil
