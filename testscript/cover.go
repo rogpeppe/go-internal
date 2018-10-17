@@ -179,7 +179,7 @@ type coverBlock struct {
 	Count uint32
 }
 
-var profileLineRe = regexp.MustCompile(`^(.+):([0-9]+).([0-9]+),([0-9]+).([0-9]+) ([0-9]+) ([0-9]+)$`)
+var profileLineRe = regexp.MustCompile(`^(.+):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$`)
 
 func toInt(s string) int {
 	i, err := strconv.Atoi(s)
