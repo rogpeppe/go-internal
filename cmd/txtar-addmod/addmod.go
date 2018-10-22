@@ -44,9 +44,13 @@ func fatalf(format string, args ...interface{}) {
 	log.Fatalf(format, args...)
 }
 
-const goCmd = "vgo"
+const goCmd = "go"
 
 func main() {
+	os.Exit(main1())
+}
+
+func main1() int {
 	flag.Usage = usage
 	flag.Parse()
 	if flag.NArg() < 2 {
@@ -152,5 +156,5 @@ func main() {
 		}
 	}
 	os.RemoveAll(tmpdir)
-	os.Exit(exitCode)
+	return exitCode
 }

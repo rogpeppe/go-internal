@@ -37,7 +37,10 @@ func Setup(p *testscript.Params) error {
 	origSetup := p.Setup
 	p.Setup = func(e *testscript.Env) error {
 		e.Vars = c.goEnviron(e.Vars)
-		return origSetup(e)
+		if origSetup != nil {
+			return origSetup(e)
+		}
+		return nil
 	}
 	if p.Cmds == nil {
 		p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))

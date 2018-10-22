@@ -27,13 +27,17 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go run savedir.go dir >saved.txt\n")
+	fmt.Fprintf(os.Stderr, "usage: savedir dir >saved.txt\n")
 	os.Exit(2)
 }
 
-const goCmd = "vgo"
+const goCmd = "go"
 
 func main() {
+	os.Exit(main1())
+}
+
+func main1() int {
 	flag.Usage = usage
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -75,4 +79,6 @@ func main() {
 
 	data := txtar.Format(a)
 	os.Stdout.Write(data)
+
+	return 0
 }
