@@ -2,7 +2,7 @@ language: go
 env:
   - GO111MODULE=on
 go_import_path: github.com/rogpeppe/go-internal
-install: "no install step required"
+install: "echo no install step required"
 go:
   - "1.11.x"
 script: go test ./...
