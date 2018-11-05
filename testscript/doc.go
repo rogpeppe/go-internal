@@ -46,11 +46,11 @@ create in the script's temporary file system before it starts executing.
 As an example:
 
 	# hello world
-	exec cat hello
-	stdout "hello world\n"
+	exec cat hello.text
+	stdout 'hello world\n'
 	! stderr .
 
-	-- hello.txt--
+	-- hello.text --
 	hello world
 
 Each script runs in a fresh temporary work directory tree, available to scripts as $WORK.
