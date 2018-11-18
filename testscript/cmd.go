@@ -5,8 +5,10 @@
 package testscript
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -34,6 +36,7 @@ var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"stdout":  (*TestScript).cmdStdout,
 	"stop":    (*TestScript).cmdStop,
 	"symlink": (*TestScript).cmdSymlink,
+	"wait":    (*TestScript).cmdWait,
 }
 
 // cd changes to a different directory.
@@ -177,18 +180,42 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 
 // exec runs the given command.
 func (ts *TestScript) cmdExec(neg bool, args []string) {
-	if len(args) < 1 {
-		ts.Fatalf("usage: exec program [args...]")
+	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
+		ts.Fatalf("usage: exec program [args...] [&]")
 	}
-	err := ts.Exec(args[0], args[1:]...)
-	if err != nil {
-		ts.Logf("[%v]\n", err)
-		if !neg {
-			ts.Fatalf("unexpected command failure")
+
+	var err error
+	if len(args) > 0 && args[len(args)-1] == "&" {
+		var cmd *exec.Cmd
+		cmd, err = ts.execBackground(args[0], args[1:len(args)-1]...)
+		if err == nil {
+			wait := make(chan struct{})
+			go func() {
+				ctxWait(ts.ctxt, cmd)
+				close(wait)
+			}()
+			ts.background = append(ts.background, backgroundCmd{cmd, wait, neg})
 		}
+		ts.stdout, ts.stderr = "", ""
 	} else {
-		if neg {
+		ts.stdout, ts.stderr, err = ts.exec(args[0], args[1:]...)
+		if ts.stdout != "" {
+			fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+		}
+		if ts.stderr != "" {
+			fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
+		}
+		if err == nil && neg {
 			ts.Fatalf("unexpected command success")
+		}
+	}
+
+	if err != nil {
+		fmt.Fprintf(&ts.log, "[%v]\n", err)
+		if ts.ctxt.Err() != nil {
+			ts.Fatalf("test timed out while running command")
+		} else if !neg {
+			ts.Fatalf("unexpected command failure")
 		}
 	}
 }
@@ -259,6 +286,14 @@ func (ts *TestScript) cmdSkip(neg bool, args []string) {
 	if neg {
 		ts.Fatalf("unsupported: ! skip")
 	}
+
+	// Before we mark the test as skipped, shut down any background processes and
+	// make sure they have returned the correct status.
+	for _, bg := range ts.background {
+		interruptProcess(bg.cmd.Process)
+	}
+	ts.cmdWait(false, nil)
+
 	if len(args) == 1 {
 		ts.t.Skip(args[0])
 	}
@@ -308,6 +343,52 @@ func (ts *TestScript) cmdSymlink(neg bool, args []string) {
 	// Note that the link target args[2] is not interpreted with MkAbs:
 	// it will be interpreted relative to the directory file is in.
 	ts.Check(os.Symlink(args[2], ts.MkAbs(args[0])))
+}
+
+// Tait waits for background commands to exit, setting stderr and stdout to their result.
+func (ts *TestScript) cmdWait(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! wait")
+	}
+	if len(args) > 0 {
+		ts.Fatalf("usage: wait")
+	}
+
+	var stdouts, stderrs []string
+	for _, bg := range ts.background {
+		<-bg.wait
+
+		args := append([]string{filepath.Base(bg.cmd.Args[0])}, bg.cmd.Args[1:]...)
+		fmt.Fprintf(&ts.log, "[background] %s: %v\n", strings.Join(args, " "), bg.cmd.ProcessState)
+
+		cmdStdout := bg.cmd.Stdout.(*strings.Builder).String()
+		if cmdStdout != "" {
+			fmt.Fprintf(&ts.log, "[stdout]\n%s", cmdStdout)
+			stdouts = append(stdouts, cmdStdout)
+		}
+
+		cmdStderr := bg.cmd.Stderr.(*strings.Builder).String()
+		if cmdStderr != "" {
+			fmt.Fprintf(&ts.log, "[stderr]\n%s", cmdStderr)
+			stderrs = append(stderrs, cmdStderr)
+		}
+
+		if bg.cmd.ProcessState.Success() {
+			if bg.neg {
+				ts.Fatalf("unexpected command success")
+			}
+		} else {
+			if ts.ctxt.Err() != nil {
+				ts.Fatalf("test timed out while running command")
+			} else if !bg.neg {
+				ts.Fatalf("unexpected command failure")
+			}
+		}
+	}
+
+	ts.stdout = strings.Join(stdouts, "")
+	ts.stderr = strings.Join(stderrs, "")
+	ts.background = nil
 }
 
 // scriptMatch implements both stdout and stderr.

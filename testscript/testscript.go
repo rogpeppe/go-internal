@@ -9,6 +9,7 @@ package testscript
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -98,6 +99,7 @@ func Run(t *testing.T, p Params) {
 				name:        name,
 				file:        file,
 				params:      p,
+				ctxt:        context.Background(),
 			}
 			ts.setup()
 			if !p.TestWork {
@@ -134,6 +136,15 @@ type TestScript struct {
 	stderr      string            // standard error from last 'go' command; for 'stderr' command
 	stopped     bool              // test wants to stop early
 	start       time.Time         // time phase started
+	background  []backgroundCmd   // backgrounded 'exec' and 'go' commands
+
+	ctxt context.Context // per TestScript context
+}
+
+type backgroundCmd struct {
+	cmd  *exec.Cmd
+	wait <-chan struct{}
+	neg  bool // if true, cmd should fail
 }
 
 // setup sets up the test execution temporary directory and environment.
@@ -188,6 +199,17 @@ func (ts *TestScript) run() {
 	}
 
 	defer func() {
+		// On a normal exit from the test loop, background processes are cleaned up
+		// before we print PASS. If we return early (e.g., due to a test failure),
+		// don't print anything about the processes that were still running.
+		for _, bg := range ts.background {
+			interruptProcess(bg.cmd.Process)
+		}
+		for _, bg := range ts.background {
+			<-bg.wait
+		}
+		ts.background = nil
+
 		markTime()
 		// Flush testScript log to testing.T log.
 		ts.t.Log("\n" + ts.abbrev(ts.log.String()))
@@ -298,14 +320,23 @@ Script:
 
 		// Command can ask script to stop early.
 		if ts.stopped {
-			return
+			// Break instead of returning, so that we check the status of any
+			// background processes and print PASS.
+			break
 		}
 	}
+
+	for _, bg := range ts.background {
+		interruptProcess(bg.cmd.Process)
+	}
+	ts.cmdWait(false, nil)
 
 	// Final phase ended.
 	rewind()
 	markTime()
-	fmt.Fprintf(&ts.log, "PASS\n")
+	if !ts.stopped {
+		fmt.Fprintf(&ts.log, "PASS\n")
+	}
 }
 
 // condition reports whether the given condition is satisfied.
@@ -372,8 +403,49 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
-	err = cmd.Run()
+	if err = cmd.Start(); err == nil {
+		err = ctxWait(ts.ctxt, cmd)
+	}
 	return stdoutBuf.String(), stderrBuf.String(), err
+}
+
+// execBackground starts the given command line (an actual subprocess, not simulated)
+// in ts.cd with environment ts.env.
+func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+	cmd := exec.Command(command, args...)
+	cmd.Dir = ts.cd
+	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	return cmd, cmd.Start()
+}
+
+// ctxWait is like cmd.Wait, but terminates cmd with os.Interrupt if ctx becomes done.
+//
+// This differs from exec.CommandContext in that it prefers os.Interrupt over os.Kill.
+// (See https://golang.org/issue/21135.)
+func ctxWait(ctx context.Context, cmd *exec.Cmd) error {
+	errc := make(chan error, 1)
+	go func() { errc <- cmd.Wait() }()
+
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		interruptProcess(cmd.Process)
+		return <-errc
+	}
+}
+
+// interruptProcess sends os.Interrupt to p if supported, or os.Kill otherwise.
+func interruptProcess(p *os.Process) {
+	if err := p.Signal(os.Interrupt); err != nil {
+		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
+		// Windows; using it with os.Process.Signal will return an error.”
+		// Fall back to Kill instead.
+		p.Kill()
+	}
 }
 
 // Exec runs the given command and saves its stdout and stderr so
