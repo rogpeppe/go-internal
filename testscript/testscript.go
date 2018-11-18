@@ -12,10 +12,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -158,6 +160,7 @@ func (ts *TestScript) setup() {
 			homeEnvName() + "=/no-home",
 			tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 			"devnull=" + os.DevNull,
+			"goversion=" + goVersion(ts),
 			":=" + string(os.PathListSeparator),
 		},
 		WorkDir: ts.workdir,
@@ -175,6 +178,16 @@ func (ts *TestScript) setup() {
 			ts.envMap[kv[:i]] = kv[i+1:]
 		}
 	}
+}
+
+// goVersion returns the current Go version.
+func goVersion(ts *TestScript) string {
+	tags := build.Default.ReleaseTags
+	version := tags[len(tags)-1]
+	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
+		ts.Fatalf("invalid go version %q", version)
+	}
+	return version[2:]
 }
 
 // run runs the test script.
