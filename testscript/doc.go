@@ -117,7 +117,7 @@ The predefined commands are:
   Check that the named files have the same content.
   By convention, file1 is the actual data and file2 the expected data.
   File1 can be "stdout" or "stderr" to use the standard output or standard error
-  from the most recent exec or go command.
+  from the most recent exec or wait command.
   (If the files have differing content, the failure prints a diff.)
 
 - cp src... dst
@@ -127,10 +127,17 @@ The predefined commands are:
   With no arguments, print the environment (useful for debugging).
   Otherwise add the listed key=value pairs to the environment.
 
-- [!] exec program [args...]
+- [!] exec program [args...] [&]
   Run the given executable program with the arguments.
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
+
+  If the last token is '&', the program executes in the background. The standard
+  output and standard error of the previous command is cleared, but the output
+  of the background process is buffered — and checking of its exit status is
+  delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
+  test. At the end of the test, any remaining background processes are
+  terminated using os.Interrupt (if supported) or os.Kill.
 
 - [!] exists [-readonly] file...
   Each of the listed files or directories must (or must not) exist.
@@ -151,17 +158,24 @@ The predefined commands are:
 
 - [!] stderr [-count=N] pattern
   Apply the grep command (see above) to the standard error
-  from the most recent exec or go command.
+  from the most recent exec or wait command.
 
 - [!] stdout [-count=N] pattern
   Apply the grep command (see above) to the standard output
-  from the most recent exec or go command.
+  from the most recent exec or wait command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.
 
 - symlink file -> target
   Create file as a symlink to target. The -> (like in ls -l output) is required.
+
+- wait
+  Wait for all 'exec' and 'go' commands started in the background (with the '&'
+  token) to exit, and display success or failure status for them.
+  After a call to wait, the 'stderr' and 'stdout' commands will apply to the
+  concatenation of the corresponding streams of the background commands,
+  in the order in which those commands were started.
 
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)
