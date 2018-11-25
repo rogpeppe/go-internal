@@ -495,6 +495,17 @@ func (ts *TestScript) MkAbs(file string) string {
 	return filepath.Join(ts.cd, file)
 }
 
+// Setenv sets the value of the environment variable named by the key.
+func (ts *TestScript) Setenv(key, value string) {
+	ts.env = append(ts.env, key+"="+value)
+	ts.envMap[key] = value
+}
+
+// Getenv gets the value of the environment variable named by the key.
+func (ts *TestScript) Getenv(key string) string {
+	return ts.envMap[key]
+}
+
 // parse parses a single line as a list of space-separated arguments
 // subject to environment variable expansion (but not resplitting).
 // Single quotes around text disable splitting and expansion.
