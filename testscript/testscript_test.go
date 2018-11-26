@@ -33,8 +33,23 @@ func TestSimple(t *testing.T) {
 	// TODO set temp directory.
 	Run(t, Params{
 		Dir: "scripts",
+		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
+			"setSpecialVal":    setSpecialVal,
+			"ensureSpecialVal": ensureSpecialVal,
+		},
 	})
 	// TODO check that the temp directory has been removed.
+}
+
+func setSpecialVal(ts *TestScript, neg bool, args []string) {
+	ts.Setenv("SPECIALVAL", "42")
+}
+
+func ensureSpecialVal(ts *TestScript, neg bool, args []string) {
+	want := "42"
+	if got := ts.Getenv("SPECIALVAL"); got != want {
+		ts.Fatalf("expected SPECIALVAL to be %q; got %q", want, got)
+	}
 }
 
 var diffTests = []struct {

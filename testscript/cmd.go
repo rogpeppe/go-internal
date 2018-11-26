@@ -194,8 +194,7 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 			ts.Logf("%s=%s\n", env, ts.envMap[env])
 			continue
 		}
-		ts.env = append(ts.env, env)
-		ts.envMap[env[:i]] = env[i+1:]
+		ts.Setenv(env[:i], env[i+1:])
 	}
 }
 
