@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rogpeppe/go-internal/module"
 	"github.com/rogpeppe/go-internal/txtar"
 )
 
@@ -103,6 +104,14 @@ func main1() int {
 			continue
 		}
 		path, vers, dir := f[0], f[1], f[2]
+
+		encpath, err := module.EncodePath(path)
+		if err != nil {
+			log.Printf("failed to encode path %q: %v", path, err)
+			continue
+		}
+		path = encpath
+
 		mod, err := ioutil.ReadFile(filepath.Join(gopath, "pkg/mod/cache/download", path, "@v", vers+".mod"))
 		if err != nil {
 			log.Printf("%s: %v", arg, err)
