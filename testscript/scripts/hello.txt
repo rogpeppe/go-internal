@@ -1,3 +1,5 @@
+[!exec:cat] stop
+
 # hello world
 exec cat hello.text
 stdout 'hello world\n'

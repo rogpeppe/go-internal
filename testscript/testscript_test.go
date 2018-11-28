@@ -6,9 +6,10 @@ package testscript
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -27,6 +28,24 @@ func TestMain(m *testing.M) {
 		"printargs": printArgs,
 		"status":    exitWithStatus,
 	}))
+}
+
+func TestCRLFInput(t *testing.T) {
+	td, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create TempDir: %v", err)
+	}
+	defer func() {
+		os.RemoveAll(td)
+	}()
+	tf := filepath.Join(td, "script.txt")
+	contents := []byte("exists output.txt\r\n-- output.txt --\r\noutput contents")
+	if err := ioutil.WriteFile(tf, contents, 0644); err != nil {
+		t.Fatalf("failed to write to %v: %v", tf, err)
+	}
+	t.Run("_", func(t *testing.T) {
+		Run(t, Params{Dir: td})
+	})
 }
 
 func TestSimple(t *testing.T) {
@@ -49,38 +68,5 @@ func ensureSpecialVal(ts *TestScript, neg bool, args []string) {
 	want := "42"
 	if got := ts.Getenv("SPECIALVAL"); got != want {
 		ts.Fatalf("expected SPECIALVAL to be %q; got %q", want, got)
-	}
-}
-
-var diffTests = []struct {
-	text1 string
-	text2 string
-	diff  string
-}{
-	{"a b c", "a b d e f", "a b -c +d +e +f"},
-	{"", "a b c", "+a +b +c"},
-	{"a b c", "", "-a -b -c"},
-	{"a b c", "d e f", "-a -b -c +d +e +f"},
-	{"a b c d e f", "a b d e f", "a b -c d e f"},
-	{"a b c e f", "a b c d e f", "a b c +d e f"},
-}
-
-func TestDiff(t *testing.T) {
-	for _, tt := range diffTests {
-		// Turn spaces into \n.
-		text1 := strings.Replace(tt.text1, " ", "\n", -1)
-		if text1 != "" {
-			text1 += "\n"
-		}
-		text2 := strings.Replace(tt.text2, " ", "\n", -1)
-		if text2 != "" {
-			text2 += "\n"
-		}
-		out := diff(text1, text2)
-		// Cut final \n, cut spaces, turn remaining \n into spaces.
-		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
-		if out != tt.diff {
-			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
-		}
 	}
 }

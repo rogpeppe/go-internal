@@ -120,6 +120,9 @@ func isMarker(data []byte) (name string, after []byte) {
 	}
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
 		data, after = data[:i], data[i+1:]
+		if data[i-1] == '\r' {
+			data = data[:len(data)-1]
+		}
 	}
 	if !bytes.HasSuffix(data, markerEnd) {
 		return "", nil
