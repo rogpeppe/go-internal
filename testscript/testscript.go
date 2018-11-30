@@ -477,7 +477,12 @@ func (ts *TestScript) Exec(command string, args ...string) error {
 
 // expand applies environment variable expansion to the string s.
 func (ts *TestScript) expand(s string) string {
-	return os.Expand(s, func(key string) string { return ts.envMap[key] })
+	return os.Expand(s, func(key string) string {
+		if key1 := strings.TrimSuffix(key, "@R"); len(key1) != len(key) {
+			return regexp.QuoteMeta(ts.envMap[key1])
+		}
+		return ts.envMap[key]
+	})
 }
 
 // fatalf aborts the test with the given failure message.
