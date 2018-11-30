@@ -87,6 +87,12 @@ quote indicates a literal single quote, as in:
 A line beginning with # is a comment and conventionally explains what is
 being done or tested at the start of a new phase in the script.
 
+A special form of environment variable syntax can be used to quote
+regexp metacharacters inside environment variables. The "@R" suffix
+is special, and indicates that the variable should be quoted.
+
+	${VAR@R}
+
 The command prefix ! indicates that the command on the rest of the line
 (typically go or a matching predicate) must fail, not succeed. Only certain
 commands support this prefix. They are indicated below by [!] in the synopsis.
