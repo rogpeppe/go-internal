@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/rogpeppe/go-internal/internal/textutil"
 )
 
 // scriptCmds are the script command implementations.
@@ -138,7 +140,7 @@ func (ts *TestScript) doCmdCmp(args []string, env bool) {
 		return
 	}
 
-	ts.Logf("[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
+	ts.Logf("[diff -%s +%s]\n%s\n", name1, name2, textutil.Diff(text1, text2))
 	ts.Fatalf("%s and %s differ", name1, name2)
 }
 

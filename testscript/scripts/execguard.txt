@@ -1,6 +1,7 @@
 [exec:nosuchcommand] exec nosuchcommand
 [exec:cat] exec cat foo
-stdout 'foo\n'
+[exec:cat] stdout 'foo\n'
+[!exec:cat] grep 'foo\n' foo
 
 -- foo --
 foo

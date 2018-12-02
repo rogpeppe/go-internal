@@ -16,6 +16,7 @@ var tests = []struct {
 	text   string
 	parsed *Archive
 }{
+	// General test
 	{
 		name: "basic",
 		text: `comment1
@@ -36,6 +37,17 @@ hello world`,
 				{"file 2", []byte("File 2 text.\n")},
 				{"empty", []byte{}},
 				{"noNL", []byte("hello world\n")},
+			},
+		},
+	},
+	// Test CRLF input
+	{
+		name: "basic",
+		text: "blah\r\n-- hello --\r\nhello\r\n",
+		parsed: &Archive{
+			Comment: []byte("blah\r\n"),
+			Files: []File{
+				{"hello", []byte("hello\r\n")},
 			},
 		},
 	},
