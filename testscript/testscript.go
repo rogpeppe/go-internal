@@ -134,6 +134,7 @@ type TestScript struct {
 	line        string            // line currently executing
 	env         []string          // environment list (for os/exec)
 	envMap      map[string]string // environment mapping (matches env)
+	stdin       string            // standard input to next 'go' command; set by 'stdin' command.
 	stdout      string            // standard output from last 'go' command; for 'stdout' command
 	stderr      string            // standard error from last 'go' command; for 'stderr' command
 	stopped     bool              // test wants to stop early
@@ -426,12 +427,14 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 	cmd := exec.Command(command, args...)
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	cmd.Stdin = strings.NewReader(ts.stdin)
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 	if err = cmd.Start(); err == nil {
 		err = ctxWait(ts.ctxt, cmd)
 	}
+	ts.stdin = ""
 	return stdoutBuf.String(), stderrBuf.String(), err
 }
 
@@ -442,8 +445,10 @@ func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd,
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
 	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdin = strings.NewReader(ts.stdin)
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
+	ts.stdin = ""
 	return cmd, cmd.Start()
 }
 

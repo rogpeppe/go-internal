@@ -150,6 +150,9 @@ The predefined commands are:
   test. At the end of the test, any remaining background processes are
   terminated using os.Interrupt (if supported) or os.Kill.
 
+  Standard input can be provided using the stdin command; this will be
+  cleared after exec has been called.
+
 - [!] exists [-readonly] file...
   Each of the listed files or directories must (or must not) exist.
   If -readonly is given, the files or directories must be unwritable.
@@ -166,6 +169,9 @@ The predefined commands are:
 
 - skip [message]
   Mark the test skipped, including the message if given.
+
+- stdin file
+  Set the standard input for the next exec command to the contents of the given file.
 
 - [!] stderr [-count=N] pattern
   Apply the grep command (see above) to the standard error
