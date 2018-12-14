@@ -35,6 +35,7 @@ var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"mkdir":   (*TestScript).cmdMkdir,
 	"rm":      (*TestScript).cmdRm,
 	"skip":    (*TestScript).cmdSkip,
+	"stdin":   (*TestScript).cmdStdin,
 	"stderr":  (*TestScript).cmdStderr,
 	"stdout":  (*TestScript).cmdStdout,
 	"stop":    (*TestScript).cmdStop,
@@ -320,6 +321,18 @@ func (ts *TestScript) cmdSkip(neg bool, args []string) {
 		ts.t.Skip(args[0])
 	}
 	ts.t.Skip()
+}
+
+func (ts *TestScript) cmdStdin(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! stdin")
+	}
+	if len(args) != 1 {
+		ts.Fatalf("usage: stdin filename")
+	}
+	data, err := ioutil.ReadFile(ts.MkAbs(args[0]))
+	ts.Check(err)
+	ts.stdin = string(data)
 }
 
 // stdout checks that the last go command standard output matches a regexp.

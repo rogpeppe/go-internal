@@ -14,6 +14,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestScripts(t *testing.T) {
-	p := testscript.Params{Dir: "testdata"}
-	testscript.Run(t, p)
+	testscript.Run(t, testscript.Params{
+		Dir: "testdata",
+	})
 }
