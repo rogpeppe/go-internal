@@ -367,8 +367,6 @@ Script:
 // condition reports whether the given condition is satisfied.
 func (ts *TestScript) condition(cond string) (bool, error) {
 	switch cond {
-	case runtime.GOOS, runtime.GOARCH, runtime.Compiler:
-		return true, nil
 	case "short":
 		return testing.Short(), nil
 	case "net":

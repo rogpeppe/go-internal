@@ -8,13 +8,19 @@ package gotooltest
 
 import (
 	"fmt"
+	"go/build"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/rogpeppe/go-internal/imports"
 	"github.com/rogpeppe/go-internal/testscript"
+)
+
+var (
+	goVersionRegex = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 )
 
 type testContext struct {
@@ -55,6 +61,14 @@ func Setup(p *testscript.Params) error {
 			if imports.KnownArch[cond] || imports.KnownOS[cond] || cond == "gc" || cond == "gccgo" {
 				return false, nil
 			}
+		}
+		if goVersionRegex.MatchString(cond) {
+			for _, v := range build.Default.ReleaseTags {
+				if cond == v {
+					return true, nil
+				}
+			}
+			return false, nil
 		}
 		if origCondition == nil {
 			return false, fmt.Errorf("unknown condition %q", cond)
