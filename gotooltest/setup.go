@@ -7,6 +7,8 @@
 package gotooltest
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/build"
 	"os/exec"
@@ -14,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/rogpeppe/go-internal/imports"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -21,11 +24,53 @@ import (
 
 var (
 	goVersionRegex = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+
+	goEnv struct {
+		GOROOT      string
+		GOCACHE     string
+		goversion   string
+		releaseTags []string
+		once        sync.Once
+		err         error
+	}
 )
 
-type testContext struct {
-	goroot  string
-	gocache string
+// initGoEnv initialises goEnv. It should only be called using goEnv.once.Do,
+// as in Setup.
+func initGoEnv() error {
+	var err error
+
+	run := func(args ...string) (*bytes.Buffer, *bytes.Buffer, error) {
+		var stdout, stderr bytes.Buffer
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		return &stdout, &stderr, cmd.Run()
+	}
+
+	lout, stderr, err := run("go", "list", "-f={{context.ReleaseTags}}", "runtime")
+	if err != nil {
+		return fmt.Errorf("failed to determine release tags from go command: %v\n%v", err, stderr.String())
+	}
+	tagStr := strings.TrimSpace(lout.String())
+	tagStr = strings.Trim(tagStr, "[]")
+	goEnv.releaseTags = strings.Split(tagStr, " ")
+
+	eout, stderr, err := run("go", "env", "-json", "GOROOT", "GOCACHE")
+	if err != nil {
+		return fmt.Errorf("failed to determine GOROOT and GOCACHE tags from go command: %v\n%v", err, stderr)
+	}
+	if err := json.Unmarshal(eout.Bytes(), &goEnv); err != nil {
+		return fmt.Errorf("failed to unmarshal GOROOT and GOCACHE tags from go command out: %v\n%v", err, eout)
+	}
+
+	version := goEnv.releaseTags[len(goEnv.releaseTags)-1]
+	if !goVersionRegex.MatchString(version) {
+		return fmt.Errorf("invalid go version %q", version)
+	}
+	goEnv.goversion = version[2:]
+
+	return nil
 }
 
 // Setup sets up the given test environment for tests that use the go
@@ -36,13 +81,16 @@ type testContext struct {
 // It checks go command can run, but not that it can build or run
 // binaries.
 func Setup(p *testscript.Params) error {
-	var c testContext
-	if err := c.init(); err != nil {
-		return err
+	goEnv.once.Do(func() {
+		goEnv.err = initGoEnv()
+	})
+	if goEnv.err != nil {
+		return goEnv.err
 	}
+
 	origSetup := p.Setup
 	p.Setup = func(e *testscript.Env) error {
-		e.Vars = c.goEnviron(e.Vars)
+		e.Vars = goEnviron(e.Vars)
 		if origSetup != nil {
 			return origSetup(e)
 		}
@@ -78,27 +126,7 @@ func Setup(p *testscript.Params) error {
 	return nil
 }
 
-func (c *testContext) init() error {
-	goEnv := func(name string) (string, error) {
-		out, err := exec.Command("go", "env", name).CombinedOutput()
-		if err != nil {
-			return "", fmt.Errorf("go env %s: %v (%s)", name, err, out)
-		}
-		return strings.TrimSpace(string(out)), nil
-	}
-	var err error
-	c.goroot, err = goEnv("GOROOT")
-	if err != nil {
-		return err
-	}
-	c.gocache, err = goEnv("GOCACHE")
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *testContext) goEnviron(env0 []string) []string {
+func goEnviron(env0 []string) []string {
 	env := environ(env0)
 	workdir := env.get("WORK")
 	return append(env, []string{
@@ -106,8 +134,9 @@ func (c *testContext) goEnviron(env0 []string) []string {
 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
 		"GOARCH=" + runtime.GOARCH,
 		"GOOS=" + runtime.GOOS,
-		"GOROOT=" + c.goroot,
-		"GOCACHE=" + c.gocache,
+		"GOROOT=" + goEnv.GOROOT,
+		"GOCACHE=" + goEnv.GOCACHE,
+		"goversion=" + goEnv.goversion,
 	}...)
 }
 

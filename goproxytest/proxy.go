@@ -41,9 +41,9 @@ import (
 )
 
 type Server struct {
+	server       *http.Server
 	URL          string
 	dir          string
-	listener     net.Listener
 	modList      []module.Version
 	zipCache     par.Cache
 	archiveCache par.Cache
@@ -71,17 +71,22 @@ func NewServer(dir, addr string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot listen on %q: %v", addr, err)
 	}
+	srv.server = &http.Server{
+		Handler: http.HandlerFunc(srv.handler),
+	}
 	addr = l.Addr().String()
 	srv.URL = "http://" + addr + "/mod"
 	go func() {
-		log.Printf("go proxy: http.Serve: %v", http.Serve(l, http.HandlerFunc(srv.handler)))
+		if err := srv.server.Serve(l); err != nil && err != http.ErrServerClosed {
+			log.Printf("go proxy: http.Serve: %v", err)
+		}
 	}()
 	return &srv, nil
 }
 
 // Close shuts down the proxy.
 func (srv *Server) Close() {
-	srv.listener.Close()
+	srv.server.Close()
 }
 
 func (srv *Server) readModList() error {

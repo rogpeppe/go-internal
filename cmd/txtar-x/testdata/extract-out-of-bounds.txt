@@ -1,9 +1,9 @@
 unquote file1.txtar file2.txtar
 ! txtar-x file1.txtar
-stderr 'cannot extract "\.\./foo": outside parent directory'
+stderr '"\.\./foo": outside parent directory'
 
 ! txtar-x file2.txtar
-stderr 'cannot extract "/foo": outside parent directory'
+stderr '"/foo": outside parent directory'
 
 -- file1.txtar --
 >-- ../foo --
