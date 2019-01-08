@@ -81,6 +81,40 @@ type Params struct {
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
 // are considered to be test files.
 func Run(t *testing.T, p Params) {
+	RunT(tshim{t}, p)
+}
+
+// T holds all the methods of the *testing.T type that
+// are used by testscript.
+type T interface {
+	Skip(...interface{})
+	Fatal(...interface{})
+	Parallel()
+	Log(...interface{})
+	FailNow()
+	Run(string, func(T))
+	// Verbose is usually implemented by the testing package
+	// directly rather than on the *testing.T type.
+	Verbose() bool
+}
+
+type tshim struct {
+	*testing.T
+}
+
+func (t tshim) Run(name string, f func(T)) {
+	t.T.Run(name, func(t *testing.T) {
+		f(tshim{t})
+	})
+}
+
+func (t tshim) Verbose() bool {
+	return testing.Verbose()
+}
+
+// RunT is like Run but uses an interface type instead of the concrete *testing.T
+// type to make it possible to use testscript functionality outside of go test.
+func RunT(t T, p Params) {
 	files, err := filepath.Glob(filepath.Join(p.Dir, "*.txt"))
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +127,7 @@ func Run(t *testing.T, p Params) {
 	for _, file := range files {
 		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func(t T) {
 			t.Parallel()
 			ts := &TestScript{
 				t:           t,
@@ -122,7 +156,7 @@ func Run(t *testing.T, p Params) {
 // A TestScript holds execution state for a single test script.
 type TestScript struct {
 	params      Params
-	t           *testing.T
+	t           T
 	testTempDir string
 	workdir     string            // temporary work dir ($WORK)
 	log         bytes.Buffer      // test execution log (printed at end of test)
@@ -207,7 +241,7 @@ func (ts *TestScript) run() {
 	// Truncate log at end of last phase marker,
 	// discarding details of successful phase.
 	rewind := func() {
-		if !testing.Verbose() {
+		if !ts.t.Verbose() {
 			ts.log.Truncate(ts.mark)
 		}
 	}
@@ -250,7 +284,7 @@ func (ts *TestScript) run() {
 	}
 
 	// With -v or -testwork, start log with full environment.
-	if *testWork || testing.Verbose() {
+	if *testWork || ts.t.Verbose() {
 		// Display environment.
 		ts.cmdEnv(false, nil)
 		fmt.Fprintf(&ts.log, "\n")
