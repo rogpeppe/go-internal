@@ -3,22 +3,21 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package goproxytest serves Go modules from a proxy
-server designed to run on localhost during tests, both to make tests avoid
-requiring specific network servers and also to make them
-significantly faster.
+Package goproxytest serves Go modules from a proxy server designed to run on
+localhost during tests, both to make tests avoid requiring specific network
+servers and also to make them significantly faster.
 
-Each module archive is named path_vers.txt, where slashes in path
-have been replaced with underscores. The archive must contain
-two files ".info" and ".mod", to be served as the info and mod files
-in the proxy protocol (see https://research.swtch.com/vgo-module).
-The remaining files are served as the content of the module zip file.
-The path@vers prefix required of files in the zip file is added
-automatically by the proxy: the files in the archive have names without
-the prefix, like plain "go.mod", "x.go", and so on.
+Each module archive is either a file named path_vers.txt or a directory named
+path_vers, where slashes in path have been replaced with underscores. The
+archive or directory must contain two files ".info" and ".mod", to be served as
+the info and mod files in the proxy protocol (see
+https://research.swtch.com/vgo-module).  The remaining files are served as the
+content of the module zip file.  The path@vers prefix required of files in the
+zip file is added automatically by the proxy: the files in the archive have
+names without the prefix, like plain "go.mod", "x.go", and so on.
 
-See ../cmd/txtar-addmod and ../cmd/txtar-savedir for tools
-generate txtar files, although it's fine to write them by hand.
+See ../cmd/txtar-addmod and ../cmd/txtar-savedir for tools generate txtar
+files, although it's fine to write them by hand.
 */
 package goproxytest
 
@@ -92,7 +91,7 @@ func (srv *Server) readModList() error {
 	}
 	for _, info := range infos {
 		name := info.Name()
-		if !strings.HasSuffix(name, ".txt") {
+		if !strings.HasSuffix(name, ".txt") && !info.IsDir() {
 			continue
 		}
 		name = strings.TrimSuffix(name, ".txt")
@@ -275,6 +274,34 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	name := filepath.Join(srv.dir, prefix+"_"+encVers+".txt")
 	a := srv.archiveCache.Do(name, func() interface{} {
 		a, err := txtar.ParseFile(name)
+		if os.IsNotExist(err) {
+			// we fallback to trying a directory
+			name = strings.TrimSuffix(name, ".txt")
+
+			a = new(txtar.Archive)
+
+			err = filepath.Walk(name, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if path == name && !info.IsDir() {
+					return fmt.Errorf("expected a directory root")
+				}
+				if info.IsDir() {
+					return nil
+				}
+				arpath := filepath.ToSlash(strings.TrimPrefix(path, name+string(os.PathSeparator)))
+				data, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				a.Files = append(a.Files, txtar.File{
+					Name: arpath,
+					Data: data,
+				})
+				return nil
+			})
+		}
 		if err != nil {
 			if !os.IsNotExist(err) {
 				fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
