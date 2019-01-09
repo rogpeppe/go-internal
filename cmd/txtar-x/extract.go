@@ -19,8 +19,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/rogpeppe/go-internal/txtar"
 )
@@ -64,45 +62,9 @@ func main1() int {
 		}
 		a = a1
 	}
-	if err := extract(a); err != nil {
+	if err := txtar.Write(a, *extractDir); err != nil {
 		log.Print(err)
 		return 1
 	}
 	return 0
-}
-
-func extract(a *txtar.Archive) error {
-	for _, f := range a.Files {
-		if err := extractFile(f); err != nil {
-			return fmt.Errorf("cannot extract %q: %v", f.Name, err)
-		}
-	}
-	return nil
-}
-
-func extractFile(f txtar.File) error {
-	path := filepath.Clean(filepath.FromSlash(f.Name))
-	if isAbs(path) || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("outside parent directory")
-	}
-	path = filepath.Join(*extractDir, path)
-	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
-		return err
-	}
-	// Avoid overwriting existing files by using O_EXCL.
-	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	if _, err := out.Write(f.Data); err != nil {
-		return err
-	}
-	return nil
-}
-
-func isAbs(p string) bool {
-	// Note: under Windows, filepath.IsAbs(`\foo`) returns false,
-	// so we need to check for that case specifically.
-	return filepath.IsAbs(p) || strings.HasPrefix(p, string(filepath.Separator))
 }
