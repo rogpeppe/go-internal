@@ -33,11 +33,15 @@ func main() {
 }
 
 func main1() int {
-	if err := mainerr(); err != nil {
+	switch err := mainerr(); err {
+	case nil:
+		return 0
+	case flag.ErrHelp:
+		return 2
+	default:
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	return 0
 }
 
 func mainerr() (retErr error) {
@@ -55,8 +59,9 @@ func mainerr() (retErr error) {
 	if err != nil {
 		return fmt.Errorf("unable to create temp dir: %v", err)
 	}
-	fmt.Printf("temporary work directory: %v\n", td)
-	if !*fWork {
+	if *fWork {
+		fmt.Fprintf(os.Stderr, "temporary work directory: %v\n", td)
+	} else {
 		defer os.RemoveAll(td)
 	}
 
