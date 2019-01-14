@@ -1,3 +1,4 @@
-go version
+go list -f '{{context.ReleaseTags}}' runtime
 [go1.11] [!go1.12] stdout go1\.11
+[go1.11] [!go1.12] ! stdout go1\.12
 [go1.12] stdout go1\.12
