@@ -18,7 +18,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rogpeppe/go-internal/imports"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -102,13 +101,11 @@ func Setup(p *testscript.Params) error {
 	p.Cmds["go"] = cmdGo
 	origCondition := p.Condition
 	p.Condition = func(cond string) (bool, error) {
-		switch cond {
-		case runtime.GOOS, runtime.GOARCH, runtime.Compiler:
-			return true, nil
-		default:
-			if imports.KnownArch[cond] || imports.KnownOS[cond] || cond == "gc" || cond == "gccgo" {
-				return false, nil
-			}
+		if cond == "gc" || cond == "gccgo" {
+			// TODO this reflects the compiler that the current
+			// binary was built with but not necessarily the compiler
+			// that will be used.
+			return cond == runtime.Compiler, nil
 		}
 		if goVersionRegex.MatchString(cond) {
 			for _, v := range build.Default.ReleaseTags {

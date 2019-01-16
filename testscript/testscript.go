@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rogpeppe/go-internal/imports"
 	"github.com/rogpeppe/go-internal/par"
 	"github.com/rogpeppe/go-internal/testenv"
 	"github.com/rogpeppe/go-internal/txtar"
@@ -397,7 +398,12 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 		return testenv.HasLink(), nil
 	case "symlink":
 		return testenv.HasSymlink(), nil
+	case runtime.GOOS, runtime.GOARCH:
+		return true, nil
 	default:
+		if imports.KnownArch[cond] || imports.KnownOS[cond] {
+			return false, nil
+		}
 		if strings.HasPrefix(cond, "exec:") {
 			prog := cond[len("exec:"):]
 			ok := execCache.Do(prog, func() interface{} {
@@ -470,6 +476,17 @@ func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd,
 	cmd.Stderr = &stderrBuf
 	ts.stdin = ""
 	return cmd, cmd.Start()
+}
+
+// BackgroundCmds returns a slice containing all the commands that have
+// been started in the background since the most recent wait command, or
+// the start of the script if wait has not been called.
+func (ts *TestScript) BackgroundCmds() []*exec.Cmd {
+	cmds := make([]*exec.Cmd, len(ts.background))
+	for i, b := range ts.background {
+		cmds[i] = b.cmd
+	}
+	return cmds
 }
 
 // ctxWait is like cmd.Wait, but terminates cmd with os.Interrupt if ctx becomes done.
