@@ -1,8 +1,10 @@
-# with no .gomodproxy supporting files we should not have a GOPROXY set
+# With no .gomodproxy supporting files, we use the GOPROXY from
+# the environment.
+env GOPROXY=0.1.2.3
 unquote file.txt
 testscript -v file.txt
 
 -- file.txt --
 >go env
->[!windows] stdout '^GOPROXY=""$'
->[windows] stdout '^set GOPROXY=$'
+>[!windows] stdout '^GOPROXY="0.1.2.3"$'
+>[windows] stdout '^set GOPROXY=0.1.2.3$'

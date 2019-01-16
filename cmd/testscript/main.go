@@ -178,6 +178,12 @@ func run(runDir, fileName string, verbose bool) error {
 		Dir: runDir,
 	}
 
+	if _, err := exec.LookPath("go"); err == nil {
+		if err := gotooltest.Setup(&p); err != nil {
+			return fmt.Errorf("failed to setup go tool for %v run: %v", fileName, err)
+		}
+	}
+
 	if len(gomodProxy.Files) > 0 {
 		srv, err := goproxytest.NewServer(mods, "")
 		if err != nil {
@@ -185,20 +191,18 @@ func run(runDir, fileName string, verbose bool) error {
 		}
 		defer srv.Close()
 
-		currSetup := p.Setup
+		origSetup := p.Setup
 
 		p.Setup = func(env *testscript.Env) error {
-			env.Vars = append(env.Vars, "GOPROXY="+srv.URL)
-			if currSetup != nil {
-				return currSetup(env)
+			if origSetup != nil {
+				if err := origSetup(env); err != nil {
+					return err
+				}
 			}
+			// Add GOPROXY after calling the original setup
+			// so that it overrides any GOPROXY set there.
+			env.Vars = append(env.Vars, "GOPROXY="+srv.URL)
 			return nil
-		}
-	}
-
-	if _, err := exec.LookPath("go"); err == nil {
-		if err := gotooltest.Setup(&p); err != nil {
-			return fmt.Errorf("failed to setup go tool for %v run: %v", fileName, err)
 		}
 	}
 
