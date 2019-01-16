@@ -1,3 +1,7 @@
+# With .gomodproxy supporting files, any GOPROXY from the
+# environment should be overridden by the test proxy.
+env GOPROXY=0.1.2.3
+
 unquote file.txt
 testscript -v file.txt
 stdout 'example.com/mod'
