@@ -183,8 +183,9 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 	if len(args) == 0 {
 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
 		for _, kv := range ts.env {
-			k := kv[:strings.Index(kv, "=")]
+			k := envvarname(kv[:strings.Index(kv, "=")])
 			if !printed[k] {
+				printed[k] = true
 				ts.Logf("%s=%s\n", k, ts.envMap[k])
 			}
 		}
@@ -194,7 +195,7 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 		i := strings.Index(env, "=")
 		if i < 0 {
 			// Display value instead of setting it.
-			ts.Logf("%s=%s\n", env, ts.envMap[env])
+			ts.Logf("%s=%s\n", env, ts.Getenv(env))
 			continue
 		}
 		ts.Setenv(env[:i], env[i+1:])
