@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/rogpeppe/go-internal/imports"
+	"github.com/rogpeppe/go-internal/internal/os/execpath"
 	"github.com/rogpeppe/go-internal/par"
 	"github.com/rogpeppe/go-internal/testenv"
 	"github.com/rogpeppe/go-internal/txtar"
@@ -167,7 +168,7 @@ type TestScript struct {
 	lineno      int               // line number currently executing
 	line        string            // line currently executing
 	env         []string          // environment list (for os/exec)
-	envMap      map[string]string // environment mapping (matches env)
+	envMap      map[string]string // environment mapping (matches env; on Windows keys are lowercase)
 	stdin       string            // standard input to next 'go' command; set by 'stdin' command.
 	stdout      string            // standard output from last 'go' command; for 'stdout' command
 	stderr      string            // standard error from last 'go' command; for 'stderr' command
@@ -220,7 +221,7 @@ func (ts *TestScript) setup() {
 	ts.envMap = make(map[string]string)
 	for _, kv := range ts.env {
 		if i := strings.Index(kv, "="); i >= 0 {
-			ts.envMap[kv[:i]] = kv[i+1:]
+			ts.envMap[envvarname(kv[:i])] = kv[i+1:]
 		}
 	}
 }
@@ -407,7 +408,7 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 		if strings.HasPrefix(cond, "exec:") {
 			prog := cond[len("exec:"):]
 			ok := execCache.Do(prog, func() interface{} {
-				_, err := exec.LookPath(prog)
+				_, err := execpath.Look(prog, ts.Getenv)
 				return err == nil
 			}).(bool)
 			return ok, nil
@@ -450,7 +451,10 @@ func (ts *TestScript) Logf(format string, args ...interface{}) {
 // exec runs the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env and then returns collected standard output and standard error.
 func (ts *TestScript) exec(command string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.Command(command, args...)
+	cmd, err := ts.buildExecCmd(command, args...)
+	if err != nil {
+		return "", "", err
+	}
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
 	cmd.Stdin = strings.NewReader(ts.stdin)
@@ -467,7 +471,10 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 // execBackground starts the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env.
 func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
-	cmd := exec.Command(command, args...)
+	cmd, err := ts.buildExecCmd(command, args...)
+	if err != nil {
+		return nil, err
+	}
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
 	var stdoutBuf, stderrBuf strings.Builder
@@ -476,6 +483,17 @@ func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd,
 	cmd.Stderr = &stderrBuf
 	ts.stdin = ""
 	return cmd, cmd.Start()
+}
+
+func (ts *TestScript) buildExecCmd(command string, args ...string) (*exec.Cmd, error) {
+	if filepath.Base(command) == command {
+		if lp, err := execpath.Look(command, ts.Getenv); err != nil {
+			return nil, err
+		} else {
+			command = lp
+		}
+	}
+	return exec.Command(command, args...), nil
 }
 
 // BackgroundCmds returns a slice containing all the commands that have
@@ -534,9 +552,9 @@ func (ts *TestScript) Exec(command string, args ...string) error {
 func (ts *TestScript) expand(s string) string {
 	return os.Expand(s, func(key string) string {
 		if key1 := strings.TrimSuffix(key, "@R"); len(key1) != len(key) {
-			return regexp.QuoteMeta(ts.envMap[key1])
+			return regexp.QuoteMeta(ts.Getenv(key1))
 		}
-		return ts.envMap[key]
+		return ts.Getenv(key)
 	})
 }
 
@@ -558,12 +576,12 @@ func (ts *TestScript) MkAbs(file string) string {
 // Setenv sets the value of the environment variable named by the key.
 func (ts *TestScript) Setenv(key, value string) {
 	ts.env = append(ts.env, key+"="+value)
-	ts.envMap[key] = value
+	ts.envMap[envvarname(key)] = value
 }
 
 // Getenv gets the value of the environment variable named by the key.
 func (ts *TestScript) Getenv(key string) string {
-	return ts.envMap[key]
+	return ts.envMap[envvarname(key)]
 }
 
 // parse parses a single line as a list of space-separated arguments
