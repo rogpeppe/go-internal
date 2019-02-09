@@ -68,15 +68,29 @@ func TestCRLFInput(t *testing.T) {
 
 func TestScripts(t *testing.T) {
 	// TODO set temp directory.
+	testDeferCount := 0
 	Run(t, Params{
-		Dir: "scripts",
+		Dir: "testdata",
 		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
 			"setSpecialVal":    setSpecialVal,
 			"ensureSpecialVal": ensureSpecialVal,
 			"interrupt":        interrupt,
 			"waitfile":         waitFile,
+			"testdefer": func(ts *TestScript, neg bool, args []string) {
+				testDeferCount++
+				n := testDeferCount
+				ts.Defer(func() {
+					if testDeferCount != n {
+						t.Errorf("defers not run in reverse order; got %d want %d", testDeferCount, n)
+					}
+					testDeferCount--
+				})
+			},
 		},
 	})
+	if testDeferCount != 0 {
+		t.Fatalf("defer mismatch; got %d want 0", testDeferCount)
+	}
 	// TODO check that the temp directory has been removed.
 }
 
