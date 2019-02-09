@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -69,6 +70,7 @@ func TestCRLFInput(t *testing.T) {
 func TestScripts(t *testing.T) {
 	// TODO set temp directory.
 	testDeferCount := 0
+	var setupFilenames []string
 	Run(t, Params{
 		Dir: "testdata",
 		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
@@ -86,6 +88,22 @@ func TestScripts(t *testing.T) {
 					testDeferCount--
 				})
 			},
+			"setup-filenames": func(ts *TestScript, neg bool, args []string) {
+				if !reflect.DeepEqual(args, setupFilenames) {
+					ts.Fatalf("setup did not see expected files; got %q want %q", setupFilenames, args)
+				}
+			},
+		},
+		Setup: func(env *Env) error {
+			infos, err := ioutil.ReadDir(env.WorkDir)
+			if err != nil {
+				return fmt.Errorf("cannot read workdir: %v", err)
+			}
+			setupFilenames = nil
+			for _, info := range infos {
+				setupFilenames = append(setupFilenames, info.Name())
+			}
+			return nil
 		},
 	})
 	if testDeferCount != 0 {
