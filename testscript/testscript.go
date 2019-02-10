@@ -54,18 +54,6 @@ func (e *Env) Defer(f func()) {
 	e.ts.Defer(f)
 }
 
-// Defer arranges for f to be called at the end
-// of the test. If Defer is called multiple times, the
-// defers are executed in reverse order (similar
-// to Go's defer statement)
-func (ts *TestScript) Defer(f func()) {
-	old := ts.deferred
-	ts.deferred = func() {
-		defer old()
-		f()
-	}
-}
-
 // Params holds parameters for a call to Run.
 type Params struct {
 	// Dir holds the name of the directory holding the scripts.
@@ -76,7 +64,8 @@ type Params struct {
 
 	// Setup is called, if not nil, to complete any setup required
 	// for a test. The WorkDir and Vars fields will have already
-	// been initialized, and Cd will be the same as WorkDir.
+	// been initialized and all the files extracted into WorkDir,
+	// and Cd will be the same as WorkDir.
 	// The Setup function may modify Vars and Cd as it wishes.
 	Setup func(*Env) error
 
@@ -161,17 +150,17 @@ func RunT(t T, p Params) {
 				ctxt:        context.Background(),
 				deferred:    func() {},
 			}
-			ts.setup()
-			if !p.TestWork {
-				defer func() {
-					removeAll(ts.workdir)
-					if atomic.AddInt32(&refCount, -1) == 0 {
-						// This is the last subtest to finish. Remove the
-						// parent directory too.
-						os.Remove(testTempDir)
-					}
-				}()
-			}
+			defer func() {
+				if p.TestWork {
+					return
+				}
+				removeAll(ts.workdir)
+				if atomic.AddInt32(&refCount, -1) == 0 {
+					// This is the last subtest to finish. Remove the
+					// parent directory too.
+					os.Remove(testTempDir)
+				}
+			}()
 			ts.run()
 		})
 	}
@@ -210,7 +199,8 @@ type backgroundCmd struct {
 }
 
 // setup sets up the test execution temporary directory and environment.
-func (ts *TestScript) setup() {
+// It returns the comment section of the txtar archive.
+func (ts *TestScript) setup() string {
 	ts.workdir = filepath.Join(ts.testTempDir, "script-"+ts.name)
 	ts.Check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
 	env := &Env{
@@ -237,6 +227,16 @@ func (ts *TestScript) setup() {
 			"exe=",
 		)
 	}
+	ts.cd = env.Cd
+	// Unpack archive.
+	a, err := txtar.ParseFile(ts.file)
+	ts.Check(err)
+	for _, f := range a.Files {
+		name := ts.MkAbs(ts.expand(f.Name))
+		ts.Check(os.MkdirAll(filepath.Dir(name), 0777))
+		ts.Check(ioutil.WriteFile(name, f.Data, 0666))
+	}
+	// Run any user-defined setup.
 	if ts.params.Setup != nil {
 		ts.Check(ts.params.Setup(env))
 	}
@@ -249,6 +249,7 @@ func (ts *TestScript) setup() {
 			ts.envMap[envvarname(kv[:i])] = kv[i+1:]
 		}
 	}
+	return string(a.Comment)
 }
 
 // run runs the test script.
@@ -291,14 +292,7 @@ func (ts *TestScript) run() {
 	defer func() {
 		ts.deferred()
 	}()
-	// Unpack archive.
-	a, err := txtar.ParseFile(ts.file)
-	ts.Check(err)
-	for _, f := range a.Files {
-		name := ts.MkAbs(ts.expand(f.Name))
-		ts.Check(os.MkdirAll(filepath.Dir(name), 0777))
-		ts.Check(ioutil.WriteFile(name, f.Data, 0666))
-	}
+	script := ts.setup()
 
 	// With -v or -testwork, start log with full environment.
 	if *testWork || ts.t.Verbose() {
@@ -310,7 +304,6 @@ func (ts *TestScript) run() {
 
 	// Run script.
 	// See testdata/script/README for documentation of script form.
-	script := string(a.Comment)
 Script:
 	for script != "" {
 		// Extract next line.
@@ -459,6 +452,18 @@ func (ts *TestScript) abbrev(s string) string {
 		s = "WORK=" + ts.workdir + "\n" + strings.TrimPrefix(s, "WORK=$WORK\n")
 	}
 	return s
+}
+
+// Defer arranges for f to be called at the end
+// of the test. If Defer is called multiple times, the
+// defers are executed in reverse order (similar
+// to Go's defer statement)
+func (ts *TestScript) Defer(f func()) {
+	old := ts.deferred
+	ts.deferred = func() {
+		defer old()
+		f()
+	}
 }
 
 // Check calls ts.Fatalf if err != nil.
