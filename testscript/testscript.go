@@ -42,6 +42,28 @@ type Env struct {
 	WorkDir string
 	Vars    []string
 	Cd      string
+
+	ts *TestScript
+}
+
+// Defer arranges for f to be called at the end
+// of the test. If Defer is called multiple times, the
+// defers are executed in reverse order (similar
+// to Go's defer statement)
+func (e *Env) Defer(f func()) {
+	e.ts.Defer(f)
+}
+
+// Defer arranges for f to be called at the end
+// of the test. If Defer is called multiple times, the
+// defers are executed in reverse order (similar
+// to Go's defer statement)
+func (ts *TestScript) Defer(f func()) {
+	old := ts.deferred
+	ts.deferred = func() {
+		defer old()
+		f()
+	}
 }
 
 // Params holds parameters for a call to Run.
@@ -137,6 +159,7 @@ func RunT(t T, p Params) {
 				file:        file,
 				params:      p,
 				ctxt:        context.Background(),
+				deferred:    func() {},
 			}
 			ts.setup()
 			if !p.TestWork {
@@ -175,6 +198,7 @@ type TestScript struct {
 	stopped     bool              // test wants to stop early
 	start       time.Time         // time phase started
 	background  []backgroundCmd   // backgrounded 'exec' and 'go' commands
+	deferred    func()            // deferred cleanup actions.
 
 	ctxt context.Context // per TestScript context
 }
@@ -200,6 +224,7 @@ func (ts *TestScript) setup() {
 		},
 		WorkDir: ts.workdir,
 		Cd:      ts.workdir,
+		ts:      ts,
 	}
 	// Must preserve SYSTEMROOT on Windows: https://github.com/golang/go/issues/25513 et al
 	if runtime.GOOS == "windows" {
@@ -263,7 +288,9 @@ func (ts *TestScript) run() {
 		// Flush testScript log to testing.T log.
 		ts.t.Log("\n" + ts.abbrev(ts.log.String()))
 	}()
-
+	defer func() {
+		ts.deferred()
+	}()
 	// Unpack archive.
 	a, err := txtar.ParseFile(ts.file)
 	ts.Check(err)

@@ -10,7 +10,7 @@ To invoke the tests, call testscript.Run. For example:
 
 	func TestFoo(t *testing.T) {
 		testscript.Run(t, testscript.Params{
-			Dir: "scripts",
+			Dir: "testdata",
 		})
 	}
 
