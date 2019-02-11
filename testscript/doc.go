@@ -128,8 +128,8 @@ The predefined commands are:
   (If the files have differing content, the failure prints a diff.)
 
 - cmpenv file1 file2
-  Like cmp, but environment variables are substituted in the file contents
-  before the comparison. For example, $GOOS is replaced by the target GOOS.
+  Like cmp, but environment variables in file2 are substituted before the
+  comparison. For example, $GOOS is replaced by the target GOOS.
 
 - cp src... dst
   Copy the listed files to the target file or existing directory.
