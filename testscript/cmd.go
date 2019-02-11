@@ -133,7 +133,6 @@ func (ts *TestScript) doCmdCmp(args []string, env bool) {
 	text2 = string(data)
 
 	if env {
-		text1 = ts.expand(text1)
 		text2 = ts.expand(text2)
 	}
 
