@@ -583,10 +583,15 @@ func (ts *TestScript) Exec(command string, args ...string) error {
 // expand applies environment variable expansion to the string s.
 func (ts *TestScript) expand(s string) string {
 	return os.Expand(s, func(key string) string {
-		if key1 := strings.TrimSuffix(key, "@R"); len(key1) != len(key) {
-			return regexp.QuoteMeta(ts.Getenv(key1))
+		key1 := strings.TrimSuffix(key, "@R")
+		v, ok := ts.LookupEnv(key1)
+		if !ok {
+			return "${" + key + "}"
 		}
-		return ts.Getenv(key)
+		if len(key1) != len(key) {
+			return regexp.QuoteMeta(v)
+		}
+		return v
 	})
 }
 
@@ -609,6 +614,15 @@ func (ts *TestScript) MkAbs(file string) string {
 func (ts *TestScript) Setenv(key, value string) {
 	ts.env = append(ts.env, key+"="+value)
 	ts.envMap[envvarname(key)] = value
+}
+
+// LookupEnv retrieves the value of the environment variable named by the key.
+// If the variable is present in the environment the value (which may be empty)
+// is returned and the boolean is true. Otherwise the returned value will be
+// empty and the boolean will be false.
+func (ts *TestScript) LookupEnv(key string) (string, bool) {
+	val, ok := ts.envMap[envvarname(key)]
+	return val, ok
 }
 
 // Getenv gets the value of the environment variable named by the key.
