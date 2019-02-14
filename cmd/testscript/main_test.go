@@ -10,10 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/gotooltest"
+	"github.com/rogpeppe/go-internal/internal/os/execpath"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -24,6 +26,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestScripts(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Fatalf("need go in PATH for these tests")
+	}
+
 	var stderr bytes.Buffer
 	cmd := exec.Command("go", "env", "GOMOD")
 	cmd.Stderr = &stderr
@@ -46,7 +52,9 @@ func TestScripts(t *testing.T) {
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"unquote": unquote,
+			"unquote":        unquote,
+			"dropgofrompath": dropgofrompath,
+			"setfilegoproxy": setfilegoproxy,
 		},
 	}
 	if err := gotooltest.Setup(&p); err != nil {
@@ -68,4 +76,37 @@ func unquote(ts *testscript.TestScript, neg bool, args []string) {
 		err = ioutil.WriteFile(file, data, 0666)
 		ts.Check(err)
 	}
+}
+
+func dropgofrompath(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! dropgofrompath")
+	}
+	var newPath []string
+	for _, d := range filepath.SplitList(ts.Getenv("PATH")) {
+		getenv := func(k string) string {
+			if k == "PATH" {
+				return d
+			}
+			return ts.Getenv(k)
+		}
+		if _, err := execpath.Look("go", getenv); err != nil {
+			newPath = append(newPath, d)
+		}
+	}
+	ts.Setenv("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
+}
+
+func setfilegoproxy(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! setfilegoproxy")
+	}
+	path := args[0]
+	path = filepath.ToSlash(path)
+	// probably sufficient to just handle spaces
+	path = strings.Replace(path, " ", "%20", -1)
+	if runtime.GOOS == "windows" {
+		path = "/" + path
+	}
+	ts.Setenv("GOPROXY", "file://"+path)
 }

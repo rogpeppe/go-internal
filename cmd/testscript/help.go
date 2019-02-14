@@ -14,7 +14,7 @@ The testscript command runs github.com/rogpeppe/go-internal/testscript scripts
 in a fresh temporary work directory tree.
 
 Usage:
-    testscript [-v] files...
+    testscript [-v] [-e VAR]... files...
 
 The testscript command is designed to make it easy to create self-contained
 reproductions of command sequences.
@@ -30,6 +30,11 @@ of the .gomodproxy subdirectory are not available to the script except via the
 proxy server. See the documentation for
 github.com/rogpeppe/go-internal/goproxytest for details on the format of these
 files/directories.
+
+Environment variables can be passed through to each script with the -e flag,
+where VAR is the name of the variable. Variables override testscript-defined
+values, with the exception of WORK which cannot be overridden. The -e flag can
+appear multiple times to specify multiple variables.
 
 Examples
 ========
