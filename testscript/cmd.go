@@ -161,16 +161,33 @@ func (ts *TestScript) cmdCp(neg bool, args []string) {
 	}
 
 	for _, arg := range args[:len(args)-1] {
-		src := ts.MkAbs(arg)
-		info, err := os.Stat(src)
-		ts.Check(err)
-		data, err := ioutil.ReadFile(src)
-		ts.Check(err)
+		var (
+			src  string
+			data []byte
+			mode os.FileMode
+		)
+		switch arg {
+		case "stdout":
+			src = arg
+			data = []byte(ts.stdout)
+			mode = 0666
+		case "stderr":
+			src = arg
+			data = []byte(ts.stderr)
+			mode = 0666
+		default:
+			src = ts.MkAbs(arg)
+			info, err := os.Stat(src)
+			ts.Check(err)
+			mode = info.Mode() & 0777
+			data, err = ioutil.ReadFile(src)
+			ts.Check(err)
+		}
 		targ := dst
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		ts.Check(ioutil.WriteFile(targ, data, info.Mode()&0777))
+		ts.Check(ioutil.WriteFile(targ, data, mode))
 	}
 }
 
