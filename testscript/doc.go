@@ -166,6 +166,12 @@ The predefined commands are:
 - mkdir path...
   Create the listed directories, if they do not already exists.
 
+- unquote file...
+  Rewrite each file by replacing any leading ">" characters from
+  each line. This enables a file to contain substrings that look like
+  txtar file markers.
+  See also https://godoc.org/github.com/rogpeppe/go-internal/txtar#Unquote
+
 - rm file...
   Remove the listed files or directories.
 

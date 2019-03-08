@@ -14,7 +14,8 @@
 package main
 
 import (
-	"flag"
+	"bytes"
+	stdflag "flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -26,10 +27,14 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 )
 
+var flag = stdflag.NewFlagSet(os.Args[0], stdflag.ContinueOnError)
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: savedir dir >saved.txt\n")
-	os.Exit(2)
+	flag.PrintDefaults()
 }
+
+var quoteFlag = flag.Bool("quote", false, "quote files that contain txtar file markers instead of failing")
 
 func main() {
 	os.Exit(main1())
@@ -37,9 +42,12 @@ func main() {
 
 func main1() int {
 	flag.Usage = usage
-	flag.Parse()
+	if flag.Parse(os.Args[1:]) != nil {
+		return 2
+	}
 	if flag.NArg() != 1 {
 		usage()
+		return 2
 	}
 
 	log.SetPrefix("txtar-savedir: ")
@@ -71,7 +79,27 @@ func main1() int {
 			log.Printf("%s: ignoring invalid UTF-8 data", path)
 			return nil
 		}
-		a.Files = append(a.Files, txtar.File{Name: strings.TrimPrefix(path, dir+string(filepath.Separator)), Data: data})
+		if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
+			log.Printf("%s: adding final newline", path)
+			data = append(data, '\n')
+		}
+		filename := strings.TrimPrefix(path, dir+string(filepath.Separator))
+		if txtar.NeedsQuote(data) {
+			if !*quoteFlag {
+				log.Printf("%s: ignoring file with txtar marker in", path)
+				return nil
+			}
+			data, err = txtar.Quote(data)
+			if err != nil {
+				log.Printf("%s: ignoring unquotable file: %v", path, err)
+				return nil
+			}
+			a.Comment = append(a.Comment, []byte("unquote "+filename+"\n")...)
+		}
+		a.Files = append(a.Files, txtar.File{
+			Name: filename,
+			Data: data,
+		})
 		return nil
 	})
 

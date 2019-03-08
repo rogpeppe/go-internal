@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -52,7 +51,6 @@ func TestScripts(t *testing.T) {
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"unquote":        unquote,
 			"dropgofrompath": dropgofrompath,
 			"setfilegoproxy": setfilegoproxy,
 		},
@@ -61,21 +59,6 @@ func TestScripts(t *testing.T) {
 		t.Fatal(err)
 	}
 	testscript.Run(t, p)
-}
-
-func unquote(ts *testscript.TestScript, neg bool, args []string) {
-	if neg {
-		ts.Fatalf("unsupported: ! unquote")
-	}
-	for _, arg := range args {
-		file := ts.MkAbs(arg)
-		data, err := ioutil.ReadFile(file)
-		ts.Check(err)
-		data = bytes.Replace(data, []byte("\n>"), []byte("\n"), -1)
-		data = bytes.TrimPrefix(data, []byte(">"))
-		err = ioutil.WriteFile(file, data, 0666)
-		ts.Check(err)
-	}
 }
 
 func dropgofrompath(ts *testscript.TestScript, neg bool, args []string) {

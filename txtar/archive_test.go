@@ -104,3 +104,88 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("expected %v; got %v", want, err)
 	}
 }
+
+var unquoteErrorTests = []struct {
+	testName    string
+	data        string
+	expectError string
+}{{
+	testName:    "no final newline",
+	data:        ">hello",
+	expectError: `data does not appear to be quoted`,
+}, {
+	testName:    "no initial >",
+	data:        "hello\n",
+	expectError: `data does not appear to be quoted`,
+}}
+
+func TestUnquote(t *testing.T) {
+	for _, test := range unquoteErrorTests {
+		t.Run(test.testName, func(t *testing.T) {
+			_, err := Unquote([]byte(test.data))
+			if err == nil {
+				t.Fatalf("unexpected success")
+			}
+			if err.Error() != test.expectError {
+				t.Fatalf("unexpected error; got %q want %q", err, test.expectError)
+			}
+		})
+	}
+}
+
+var quoteTests = []struct {
+	testName    string
+	data        string
+	expect      string
+	expectError string
+}{{
+	testName: "empty",
+	data:     "",
+	expect:   "",
+}, {
+	testName: "one line",
+	data:     "foo\n",
+	expect:   ">foo\n",
+}, {
+	testName: "several lines",
+	data:     "foo\nbar\n-- baz --\n",
+	expect:   ">foo\n>bar\n>-- baz --\n",
+}, {
+	testName:    "bad data",
+	data:        "foo\xff\n",
+	expectError: `data contains non-UTF-8 characters`,
+}, {
+	testName:    "no final newline",
+	data:        "foo",
+	expectError: `data has no final newline`,
+}}
+
+func TestQuote(t *testing.T) {
+	for _, test := range quoteTests {
+		t.Run(test.testName, func(t *testing.T) {
+			got, err := Quote([]byte(test.data))
+			if test.expectError != "" {
+				if err == nil {
+					t.Fatalf("unexpected success")
+				}
+				if err.Error() != test.expectError {
+					t.Fatalf("unexpected error; got %q want %q", err, test.expectError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("quote error: %v", err)
+			}
+			if string(got) != test.expect {
+				t.Fatalf("unexpected result; got %q want %q", got, test.expect)
+			}
+			orig, err := Unquote(got)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(orig) != test.data {
+				t.Fatalf("round trip failed; got %q want %q", orig, test.data)
+			}
+		})
+	}
+}
