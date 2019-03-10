@@ -1,7 +1,7 @@
 unquote blah/withsep
 unquote expect
-txtar-savedir blah
-stderr 'txtar-savedir: blah.withsep: ignoring file with txtar marker in'
+txtar-c blah
+stderr 'txtar-c: blah.withsep: ignoring file with txtar marker in'
 cmp stdout expect
 
 -- blah/withsep --

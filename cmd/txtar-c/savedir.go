@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The txtar-savedir command archives a directory tree as a txtar archive printed to standard output.
+// The txtar-c command archives a directory tree as a txtar archive printed to standard output.
 //
 // Usage:
 //
-//	txtar-savedir /path/to/dir >saved.txt
+//	txtar-c /path/to/dir >saved.txt
 //
 // See https://godoc.org/github.com/rogpeppe/go-internal/txtar for details of the format
 // and how to parse a txtar file.
@@ -30,11 +30,14 @@ import (
 var flag = stdflag.NewFlagSet(os.Args[0], stdflag.ContinueOnError)
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: savedir dir >saved.txt\n")
+	fmt.Fprintf(os.Stderr, "usage: txtar-c dir >saved.txt\n")
 	flag.PrintDefaults()
 }
 
-var quoteFlag = flag.Bool("quote", false, "quote files that contain txtar file markers instead of failing")
+var (
+	quoteFlag = flag.Bool("quote", false, "quote files that contain txtar file markers instead of failing")
+	allFlag   = flag.Bool("a", false, "include dot files too")
+)
 
 func main() {
 	os.Exit(main1())
@@ -50,7 +53,7 @@ func main1() int {
 		return 2
 	}
 
-	log.SetPrefix("txtar-savedir: ")
+	log.SetPrefix("txtar-c: ")
 	log.SetFlags(0)
 
 	dir := flag.Arg(0)
@@ -62,7 +65,7 @@ func main1() int {
 			return nil
 		}
 		name := info.Name()
-		if strings.HasPrefix(name, ".") {
+		if strings.HasPrefix(name, ".") && !*allFlag {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -76,7 +79,7 @@ func main1() int {
 			log.Fatal(err)
 		}
 		if !utf8.Valid(data) {
-			log.Printf("%s: ignoring invalid UTF-8 data", path)
+			log.Printf("%s: ignoring file with invalid UTF-8 data", path)
 			return nil
 		}
 		if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
@@ -97,7 +100,7 @@ func main1() int {
 			a.Comment = append(a.Comment, []byte("unquote "+filename+"\n")...)
 		}
 		a.Files = append(a.Files, txtar.File{
-			Name: filename,
+			Name: filepath.ToSlash(filename),
 			Data: data,
 		})
 		return nil
