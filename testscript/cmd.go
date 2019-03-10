@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/rogpeppe/go-internal/internal/textutil"
+	"github.com/rogpeppe/go-internal/txtar"
 )
 
 // scriptCmds are the script command implementations.
@@ -34,6 +35,7 @@ var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"grep":    (*TestScript).cmdGrep,
 	"mkdir":   (*TestScript).cmdMkdir,
 	"rm":      (*TestScript).cmdRm,
+	"unquote": (*TestScript).cmdUnquote,
 	"skip":    (*TestScript).cmdSkip,
 	"stdin":   (*TestScript).cmdStdin,
 	"stderr":  (*TestScript).cmdStderr,
@@ -300,6 +302,22 @@ func (ts *TestScript) cmdMkdir(neg bool, args []string) {
 	}
 	for _, arg := range args {
 		ts.Check(os.MkdirAll(ts.MkAbs(arg), 0777))
+	}
+}
+
+// unquote unquotes files.
+func (ts *TestScript) cmdUnquote(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! unquote")
+	}
+	for _, arg := range args {
+		file := ts.MkAbs(arg)
+		data, err := ioutil.ReadFile(file)
+		ts.Check(err)
+		data, err = txtar.Unquote(data)
+		ts.Check(err)
+		err = ioutil.WriteFile(file, data, 0666)
+		ts.Check(err)
 	}
 }
 

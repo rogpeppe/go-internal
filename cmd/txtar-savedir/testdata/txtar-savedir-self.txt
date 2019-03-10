@@ -2,9 +2,10 @@
 # define a txtar archive-generated file that is the golden output from txtar-savedir
 # So we can't actually test the output for now, instead we just rely on a simple
 # stdout check
+unquote expect
 txtar-savedir blah
 ! stderr .+
-stdout '^module example.com/blah$'
+cmp stdout expect
 
 -- blah/go.mod --
 module example.com/blah
@@ -17,3 +18,15 @@ import "fmt"
 func main() {
   fmt.Println("Hello, world!")
 }
+-- expect --
+>-- go.mod --
+>module example.com/blah
+>
+>-- main.go --
+>package main
+>
+>import "fmt"
+>
+>func main() {
+>  fmt.Println("Hello, world!")
+>}
