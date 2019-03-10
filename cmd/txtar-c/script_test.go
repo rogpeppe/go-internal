@@ -13,7 +13,7 @@ import (
 
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"txtar-savedir": main1,
+		"txtar-c": main1,
 	}))
 }
 

@@ -1,6 +1,6 @@
 unquote blah/withsep
 unquote expect
-txtar-savedir -quote blah
+txtar-c -quote blah
 ! stderr .+
 cmp stdout expect
 

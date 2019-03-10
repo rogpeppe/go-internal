@@ -1,9 +1,5 @@
-# Because of https://github.com/rogpeppe/go-internal/issues/11 we cannot
-# define a txtar archive-generated file that is the golden output from txtar-savedir
-# So we can't actually test the output for now, instead we just rely on a simple
-# stdout check
 unquote expect
-txtar-savedir blah
+txtar-c blah
 ! stderr .+
 cmp stdout expect
 
@@ -18,6 +14,8 @@ import "fmt"
 func main() {
   fmt.Println("Hello, world!")
 }
+-- blah/subdir/x --
+x contents
 -- expect --
 >-- go.mod --
 >module example.com/blah
@@ -30,3 +28,5 @@ func main() {
 >func main() {
 >  fmt.Println("Hello, world!")
 >}
+>-- subdir/x --
+>x contents
