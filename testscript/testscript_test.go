@@ -93,6 +93,11 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("setup did not see expected files; got %q want %q", setupFilenames, args)
 				}
 			},
+			"test-values": func(ts *TestScript, neg bool, args []string) {
+				if ts.Value("somekey") != 1234 {
+					ts.Fatalf("test-values did not see expected value")
+				}
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := ioutil.ReadDir(env.WorkDir)
@@ -103,6 +108,7 @@ func TestScripts(t *testing.T) {
 			for _, info := range infos {
 				setupFilenames = append(setupFilenames, info.Name())
 			}
+			env.Values["somekey"] = 1234
 			return nil
 		},
 	})

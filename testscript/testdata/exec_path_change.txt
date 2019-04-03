@@ -15,6 +15,9 @@ exec go$exe build
 exec go$exe version
 stdout 'This is not go'
 
+-- go/go.mod --
+module example.com/go
+
 -- go/main.go --
 package main
 
