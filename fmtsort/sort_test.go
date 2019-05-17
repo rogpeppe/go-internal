@@ -82,50 +82,53 @@ func TestCompare(t *testing.T) {
 }
 
 type sortTest struct {
-	data  interface{} // Always a map.
-	print string      // Printed result using our custom printer.
+	data            interface{} // Always a map.
+	print           string      // Printed result using our custom printer.
+	printBrokenNaNs string      // Printed result when NaN support is broken (pre Go1.12).
 }
 
 var sortTests = []sortTest{
 	{
-		map[int]string{7: "bar", -3: "foo"},
-		"-3:foo 7:bar",
+		data:  map[int]string{7: "bar", -3: "foo"},
+		print: "-3:foo 7:bar",
 	},
 	{
-		map[uint8]string{7: "bar", 3: "foo"},
-		"3:foo 7:bar",
+		data:  map[uint8]string{7: "bar", 3: "foo"},
+		print: "3:foo 7:bar",
 	},
 	{
-		map[string]string{"7": "bar", "3": "foo"},
-		"3:foo 7:bar",
+		data:  map[string]string{"7": "bar", "3": "foo"},
+		print: "3:foo 7:bar",
 	},
 	{
-		map[float64]string{7: "bar", -3: "foo", math.NaN(): "nan", math.Inf(0): "inf"},
-		"NaN:nan -3:foo 7:bar +Inf:inf",
+		data:            map[float64]string{7: "bar", -3: "foo", math.NaN(): "nan", math.Inf(0): "inf"},
+		print:           "NaN:nan -3:foo 7:bar +Inf:inf",
+		printBrokenNaNs: "NaN: -3:foo 7:bar +Inf:inf",
 	},
 	{
-		map[complex128]string{7 + 2i: "bar2", 7 + 1i: "bar", -3: "foo", complex(math.NaN(), 0i): "nan", complex(math.Inf(0), 0i): "inf"},
-		"(NaN+0i):nan (-3+0i):foo (7+1i):bar (7+2i):bar2 (+Inf+0i):inf",
+		data:            map[complex128]string{7 + 2i: "bar2", 7 + 1i: "bar", -3: "foo", complex(math.NaN(), 0i): "nan", complex(math.Inf(0), 0i): "inf"},
+		print:           "(NaN+0i):nan (-3+0i):foo (7+1i):bar (7+2i):bar2 (+Inf+0i):inf",
+		printBrokenNaNs: "(NaN+0i): (-3+0i):foo (7+1i):bar (7+2i):bar2 (+Inf+0i):inf",
 	},
 	{
-		map[bool]string{true: "true", false: "false"},
-		"false:false true:true",
+		data:  map[bool]string{true: "true", false: "false"},
+		print: "false:false true:true",
 	},
 	{
-		chanMap(),
-		"CHAN0:0 CHAN1:1 CHAN2:2",
+		data:  chanMap(),
+		print: "CHAN0:0 CHAN1:1 CHAN2:2",
 	},
 	{
-		pointerMap(),
-		"PTR0:0 PTR1:1 PTR2:2",
+		data:  pointerMap(),
+		print: "PTR0:0 PTR1:1 PTR2:2",
 	},
 	{
-		map[toy]string{toy{7, 2}: "72", toy{7, 1}: "71", toy{3, 4}: "34"},
-		"{3 4}:34 {7 1}:71 {7 2}:72",
+		data:  map[toy]string{toy{7, 2}: "72", toy{7, 1}: "71", toy{3, 4}: "34"},
+		print: "{3 4}:34 {7 1}:71 {7 2}:72",
 	},
 	{
-		map[[2]int]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
-		"[3 4]:34 [7 1]:71 [7 2]:72",
+		data:  map[[2]int]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
+		print: "[3 4]:34 [7 1]:71 [7 2]:72",
 	},
 }
 
@@ -202,8 +205,12 @@ type toy struct {
 func TestOrder(t *testing.T) {
 	for _, test := range sortTests {
 		got := sprint(test.data)
-		if got != test.print {
-			t.Errorf("%s: got %q, want %q", reflect.TypeOf(test.data), got, test.print)
+		want := test.print
+		if fmtsort.BrokenNaNs && test.printBrokenNaNs != "" {
+			want = test.printBrokenNaNs
+		}
+		if got != want {
+			t.Errorf("%s: got %q, want %q", reflect.TypeOf(test.data), got, want)
 		}
 	}
 }
