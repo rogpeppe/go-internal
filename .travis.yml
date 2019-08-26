@@ -1,13 +1,22 @@
 language: go
+
 os:
   - windows
   - linux
   - osx
+
+branches:
+  only:
+    - master
+
 go:
   - "1.11.x"
   - "1.12.x"
+  - "1.13beta1"
+
 env:
   - GO111MODULE=on
+
 go_import_path: github.com/rogpeppe/go-internal
 
 # Add this before_install until we have a definitive resolution on

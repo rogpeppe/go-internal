@@ -109,6 +109,9 @@ func TestScripts(t *testing.T) {
 				setupFilenames = append(setupFilenames, info.Name())
 			}
 			env.Values["somekey"] = 1234
+			env.Vars = append(env.Vars,
+				"GONOSUMDB=*",
+			)
 			return nil
 		},
 	})
