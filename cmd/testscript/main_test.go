@@ -47,6 +47,7 @@ func TestScripts(t *testing.T) {
 		Setup: func(env *testscript.Env) error {
 			env.Vars = append(env.Vars,
 				"GOINTERNALMODPATH="+filepath.Dir(gomod),
+				"GONOSUMDB=*",
 			)
 			return nil
 		},
