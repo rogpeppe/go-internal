@@ -150,6 +150,14 @@ func RunT(t T, p Params) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The temp dir returned by ioutil.TempDir might be a sym linked dir (default
+	// behaviour in macOS). That could mess up matching that includes $WORK if,
+	// for example, an external program outputs resolved paths. Evaluating the
+	// dir here will ensure consistency.
+	testTempDir, err = filepath.EvalSymlinks(testTempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	refCount := int32(len(files))
 	for _, file := range files {
 		file := file
