@@ -174,7 +174,7 @@ func RunT(t T, p Params) {
 				deferred:    func() {},
 			}
 			defer func() {
-				if p.TestWork {
+				if p.TestWork || *testWork {
 					return
 				}
 				removeAll(ts.workdir)
