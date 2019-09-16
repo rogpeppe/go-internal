@@ -119,21 +119,11 @@ func (ts *TestScript) cmdCmpenv(neg bool, args []string) {
 
 func (ts *TestScript) doCmdCmp(args []string, env bool) {
 	name1, name2 := args[0], args[1]
-	var text1, text2 string
-	if name1 == "stdout" {
-		text1 = ts.stdout
-	} else if name1 == "stderr" {
-		text1 = ts.stderr
-	} else {
-		data, err := ioutil.ReadFile(ts.MkAbs(name1))
-		ts.Check(err)
-		text1 = string(data)
-	}
+	text1 := ts.ReadFile(name1)
 
 	data, err := ioutil.ReadFile(ts.MkAbs(name2))
 	ts.Check(err)
-	text2 = string(data)
-
+	text2 := string(data)
 	if env {
 		text2 = ts.expand(text2)
 	}

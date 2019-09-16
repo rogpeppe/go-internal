@@ -631,6 +631,27 @@ func (ts *TestScript) MkAbs(file string) string {
 	return filepath.Join(ts.cd, file)
 }
 
+// ReadFile returns the contents of the file with the
+// given name, intepreted relative to the test script's
+// current directory. It interprets "stdout" and "stderr" to
+// mean the standard output or standard error from
+// the most recent exec or wait command respectively.
+//
+// If the file cannot be read, the script fails.
+func (ts *TestScript) ReadFile(file string) string {
+	switch file {
+	case "stdout":
+		return ts.stdout
+	case "stderr":
+		return ts.stderr
+	default:
+		file = ts.MkAbs(file)
+		data, err := ioutil.ReadFile(file)
+		ts.Check(err)
+		return string(data)
+	}
+}
+
 // Setenv sets the value of the environment variable named by the key.
 func (ts *TestScript) Setenv(key, value string) {
 	ts.env = append(ts.env, key+"="+value)
