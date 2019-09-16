@@ -14,12 +14,24 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
 
 func printArgs() int {
 	fmt.Printf("%q\n", os.Args)
+	return 0
+}
+
+func echo() int {
+	s := strings.Join(os.Args[2:], " ")
+	switch os.Args[1] {
+	case "stdout":
+		fmt.Println(s)
+	case "stderr":
+		fmt.Fprintln(os.Stderr, s)
+	}
 	return 0
 }
 
@@ -46,6 +58,7 @@ func signalCatcher() int {
 func TestMain(m *testing.M) {
 	os.Exit(RunMain(m, map[string]func() int{
 		"printargs":     printArgs,
+		"echo":          echo,
 		"status":        exitWithStatus,
 		"signalcatcher": signalCatcher,
 	}))
@@ -98,6 +111,16 @@ func TestScripts(t *testing.T) {
 			"test-values": func(ts *TestScript, neg bool, args []string) {
 				if ts.Value("somekey") != 1234 {
 					ts.Fatalf("test-values did not see expected value")
+				}
+			},
+			"testreadfile": func(ts *TestScript, neg bool, args []string) {
+				if len(args) != 1 {
+					ts.Fatalf("testreadfile <filename>")
+				}
+				got := ts.ReadFile(args[0])
+				want := args[0] + "\n"
+				if got != want {
+					ts.Fatalf("reading %q; got %q want %q", args[0], got, want)
 				}
 			},
 		},
