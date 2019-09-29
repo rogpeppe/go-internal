@@ -121,15 +121,23 @@ func (ts *TestScript) doCmdCmp(args []string, env bool) {
 	name1, name2 := args[0], args[1]
 	text1 := ts.ReadFile(name1)
 
-	data, err := ioutil.ReadFile(ts.MkAbs(name2))
+	absName2 := ts.MkAbs(name2)
+	data, err := ioutil.ReadFile(absName2)
 	ts.Check(err)
 	text2 := string(data)
 	if env {
 		text2 = ts.expand(text2)
 	}
-
 	if text1 == text2 {
 		return
+	}
+	if ts.params.UpdateScripts && !env && (args[0] == "stdout" || args[0] == "stderr") {
+		if scriptFile, ok := ts.scriptFiles[absName2]; ok {
+			ts.scriptUpdates[scriptFile] = text1
+			return
+		}
+		// The file being compared against isn't in the txtar archive, so don't
+		// update the script.
 	}
 
 	ts.Logf("[diff -%s +%s]\n%s\n", name1, name2, textutil.Diff(text1, text2))

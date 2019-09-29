@@ -103,6 +103,16 @@ type Params struct {
 	// (for example because the function invoked os.Exit), then the
 	// error will be ignored.
 	IgnoreMissedCoverage bool
+
+	// UpdateScripts specifies that if a `cmp` command fails and
+	// its first argument is `stdout` or `stderr` and its second argument
+	// refers to a file inside the testscript file, the command will succeed
+	// and the testscript file will be updated to reflect the actual output.
+	//
+	// The content will be quoted with txtar.Quote if needed;
+	// a manual change will be needed if it is not unquoted in the
+	// script.
+	UpdateScripts bool
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
@@ -165,13 +175,15 @@ func RunT(t T, p Params) {
 		t.Run(name, func(t T) {
 			t.Parallel()
 			ts := &TestScript{
-				t:           t,
-				testTempDir: testTempDir,
-				name:        name,
-				file:        file,
-				params:      p,
-				ctxt:        context.Background(),
-				deferred:    func() {},
+				t:             t,
+				testTempDir:   testTempDir,
+				name:          name,
+				file:          file,
+				params:        p,
+				ctxt:          context.Background(),
+				deferred:      func() {},
+				scriptFiles:   make(map[string]string),
+				scriptUpdates: make(map[string]string),
 			}
 			defer func() {
 				if p.TestWork || *testWork {
@@ -191,27 +203,30 @@ func RunT(t T, p Params) {
 
 // A TestScript holds execution state for a single test script.
 type TestScript struct {
-	params      Params
-	t           T
-	testTempDir string
-	workdir     string                      // temporary work dir ($WORK)
-	log         bytes.Buffer                // test execution log (printed at end of test)
-	mark        int                         // offset of next log truncation
-	cd          string                      // current directory during test execution; initially $WORK/gopath/src
-	name        string                      // short name of test ("foo")
-	file        string                      // full file name ("testdata/script/foo.txt")
-	lineno      int                         // line number currently executing
-	line        string                      // line currently executing
-	env         []string                    // environment list (for os/exec)
-	envMap      map[string]string           // environment mapping (matches env; on Windows keys are lowercase)
-	values      map[interface{}]interface{} // values for custom commands
-	stdin       string                      // standard input to next 'go' command; set by 'stdin' command.
-	stdout      string                      // standard output from last 'go' command; for 'stdout' command
-	stderr      string                      // standard error from last 'go' command; for 'stderr' command
-	stopped     bool                        // test wants to stop early
-	start       time.Time                   // time phase started
-	background  []backgroundCmd             // backgrounded 'exec' and 'go' commands
-	deferred    func()                      // deferred cleanup actions.
+	params        Params
+	t             T
+	testTempDir   string
+	workdir       string                      // temporary work dir ($WORK)
+	log           bytes.Buffer                // test execution log (printed at end of test)
+	mark          int                         // offset of next log truncation
+	cd            string                      // current directory during test execution; initially $WORK/gopath/src
+	name          string                      // short name of test ("foo")
+	file          string                      // full file name ("testdata/script/foo.txt")
+	lineno        int                         // line number currently executing
+	line          string                      // line currently executing
+	env           []string                    // environment list (for os/exec)
+	envMap        map[string]string           // environment mapping (matches env; on Windows keys are lowercase)
+	values        map[interface{}]interface{} // values for custom commands
+	stdin         string                      // standard input to next 'go' command; set by 'stdin' command.
+	stdout        string                      // standard output from last 'go' command; for 'stdout' command
+	stderr        string                      // standard error from last 'go' command; for 'stderr' command
+	stopped       bool                        // test wants to stop early
+	start         time.Time                   // time phase started
+	background    []backgroundCmd             // backgrounded 'exec' and 'go' commands
+	deferred      func()                      // deferred cleanup actions.
+	archive       *txtar.Archive              // the testscript being run.
+	scriptFiles   map[string]string           // files stored in the txtar archive (absolute paths -> path in script)
+	scriptUpdates map[string]string           // updates to testscript files via UpdateScripts.
 
 	ctxt context.Context // per TestScript context
 }
@@ -256,8 +271,10 @@ func (ts *TestScript) setup() string {
 	// Unpack archive.
 	a, err := txtar.ParseFile(ts.file)
 	ts.Check(err)
+	ts.archive = a
 	for _, f := range a.Files {
 		name := ts.MkAbs(ts.expand(f.Name))
+		ts.scriptFiles[name] = f.Name
 		ts.Check(os.MkdirAll(filepath.Dir(name), 0777))
 		ts.Check(ioutil.WriteFile(name, f.Data, 0666))
 	}
@@ -327,6 +344,7 @@ func (ts *TestScript) run() {
 		fmt.Fprintf(&ts.log, "\n")
 		ts.mark = ts.log.Len()
 	}
+	defer ts.applyScriptUpdates()
 
 	// Run script.
 	// See testdata/script/README for documentation of script form.
@@ -432,6 +450,40 @@ Script:
 	if !ts.stopped {
 		fmt.Fprintf(&ts.log, "PASS\n")
 	}
+}
+
+func (ts *TestScript) applyScriptUpdates() {
+	if len(ts.scriptUpdates) == 0 {
+		return
+	}
+	for name, content := range ts.scriptUpdates {
+		found := false
+		for i := range ts.archive.Files {
+			f := &ts.archive.Files[i]
+			if f.Name != name {
+				continue
+			}
+			data := []byte(content)
+			if txtar.NeedsQuote(data) {
+				data1, err := txtar.Quote(data)
+				if err != nil {
+					ts.t.Fatal(fmt.Sprintf("cannot update script file %q: %v", f.Name, err))
+					continue
+				}
+				data = data1
+			}
+			f.Data = data
+			found = true
+		}
+		// Sanity check.
+		if !found {
+			panic("script update file not found")
+		}
+	}
+	if err := ioutil.WriteFile(ts.file, txtar.Format(ts.archive), 0666); err != nil {
+		ts.t.Fatal("cannot update script: ", err)
+	}
+	ts.Logf("%s updated", ts.file)
 }
 
 // condition reports whether the given condition is satisfied.
