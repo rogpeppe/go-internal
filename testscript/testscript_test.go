@@ -5,6 +5,7 @@
 package testscript
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -123,6 +124,35 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("reading %q; got %q want %q", args[0], got, want)
 				}
 			},
+			"testscript-update": func(ts *TestScript, neg bool, args []string) {
+				// Run testscript in testscript. Oooh! Meta!
+				if len(args) != 1 {
+					ts.Fatalf("testscript <dir>")
+				}
+				t := &fakeT{ts: ts}
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+							if err != errAbort {
+								panic(err)
+							}
+						}
+					}()
+					RunT(t, Params{
+						Dir:           ts.MkAbs(args[0]),
+						UpdateScripts: true,
+					})
+				}()
+				if neg {
+					if len(t.failMsgs) == 0 {
+						ts.Fatalf("testscript-update unexpectedly succeeded")
+					}
+					return
+				}
+				if len(t.failMsgs) > 0 {
+					ts.Fatalf("testscript-update unexpectedly failed with errors: %q", t.failMsgs)
+				}
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := ioutil.ReadDir(env.WorkDir)
@@ -218,4 +248,38 @@ func waitFile(ts *TestScript, neg bool, args []string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	ts.Fatalf("timed out waiting for %q to be created", path)
+}
+
+type fakeT struct {
+	ts       *TestScript
+	failMsgs []string
+}
+
+var errAbort = errors.New("abort test")
+
+func (t *fakeT) Skip(args ...interface{}) {
+	panic(errAbort)
+}
+
+func (t *fakeT) Fatal(args ...interface{}) {
+	t.failMsgs = append(t.failMsgs, fmt.Sprint(args...))
+	panic(errAbort)
+}
+
+func (t *fakeT) Parallel() {}
+
+func (t *fakeT) Log(args ...interface{}) {
+	t.ts.Logf("testscript: %v", fmt.Sprint(args...))
+}
+
+func (t *fakeT) FailNow() {
+	t.Fatal("failed")
+}
+
+func (t *fakeT) Run(name string, f func(T)) {
+	f(t)
+}
+
+func (t *fakeT) Verbose() bool {
+	return false
 }
