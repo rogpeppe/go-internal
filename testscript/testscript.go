@@ -152,9 +152,13 @@ func (t tshim) Verbose() bool {
 // RunT is like Run but uses an interface type instead of the concrete *testing.T
 // type to make it possible to use testscript functionality outside of go test.
 func RunT(t T, p Params) {
-	files, err := filepath.Glob(filepath.Join(p.Dir, "*.txt"))
+	glob := filepath.Join(p.Dir, "*.txt")
+	files, err := filepath.Glob(glob)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal(fmt.Sprintf("no scripts found matching glob: %v", glob))
 	}
 	testTempDir, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-test-script")
 	if err != nil {

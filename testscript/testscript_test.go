@@ -202,6 +202,32 @@ func TestTestwork(t *testing.T) {
 	}
 }
 
+// TestBadDir verifies that invoking testscript with a directory that either
+// does not exist or that contains no *.txt scripts fails the test
+func TestBadDir(t *testing.T) {
+	ft := new(fakeT)
+	func() {
+		defer func() {
+			if err := recover(); err != nil {
+				if err != errAbort {
+					panic(err)
+				}
+			}
+		}()
+		RunT(ft, Params{
+			Dir: "thiswillnevermatch",
+		})
+	}()
+	wantCount := 1
+	if got := len(ft.failMsgs); got != wantCount {
+		t.Fatalf("expected %v fail message; got %v", wantCount, got)
+	}
+	wantMsg := regexp.MustCompile(`no scripts found matching glob: thiswillnevermatch[/\\]\*\.txt`)
+	if got := ft.failMsgs[0]; !wantMsg.MatchString(got) {
+		t.Fatalf("expected msg to match `%v`; got:\n%v", wantMsg, got)
+	}
+}
+
 func setSpecialVal(ts *TestScript, neg bool, args []string) {
 	ts.Setenv("SPECIALVAL", "42")
 }
