@@ -528,7 +528,7 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 // abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
 func (ts *TestScript) abbrev(s string) string {
 	s = strings.Replace(s, ts.workdir, "$WORK", -1)
-	if *testWork {
+	if *testWork || ts.params.TestWork {
 		// Expose actual $WORK value in environment dump on first line of work script,
 		// so that the user can find out what directory -testwork left behind.
 		s = "WORK=" + ts.workdir + "\n" + strings.TrimPrefix(s, "WORK=$WORK\n")

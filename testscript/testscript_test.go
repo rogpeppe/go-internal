@@ -202,6 +202,58 @@ func TestTestwork(t *testing.T) {
 	}
 }
 
+// TestGoTmpDir tests that a non zero value in $GOTMPDIR is honoured
+func TestGoTmpDir(t *testing.T) {
+	// NOTE: do not make this test parallel; we change environment variables within it
+	td, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	prev := os.Getenv("GOTMPDIR")
+	if err := os.Setenv("GOTMPDIR", td); err != nil {
+		t.Fatalf("failed to set GOTMPDIR: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("GOTMPDIR", prev); err != nil {
+			t.Fatalf("failed to revert GOTMPDIR: %v", err)
+		}
+		os.RemoveAll(td)
+	}()
+	params := Params{
+		Dir:      filepath.Join("testdata", "nothing"),
+		TestWork: true,
+	}
+	// Run as a sub-test so that this call blocks until the sub-tests created by
+	// calling Run (which themselves call t.Parallel) complete.
+	t.Run("run tests", func(t *testing.T) {
+		Run(t, params)
+	})
+	// Verify that we have a single go-test-script-* named directory
+	dir, err := ioutil.ReadDir(td)
+	if err != nil {
+		t.Fatalf("failed to list %v: %v", td, err)
+	}
+	if len(dir) != 1 {
+		var entries []string
+		for _, d := range dir {
+			entries = append(entries, d.Name())
+		}
+		var entriesStr string
+		if len(entries) > 0 {
+			entriesStr = "(" + strings.Join(entries, ", ") + ")"
+		}
+		t.Fatalf("expected a single entry in the listing for %v: got %v %v", td, len(dir), entriesStr)
+	}
+	entry := dir[0]
+	if !strings.HasPrefix(entry.Name(), "go-test-script") {
+		t.Fatalf("unexpected name format for directory in %v: %v", td, entry.Name())
+	}
+	want := filepath.Join(td, entry.Name(), "script-nothing", "README.md")
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("failed to find %v: %v", want, err)
+	}
+}
+
 // TestBadDir verifies that invoking testscript with a directory that either
 // does not exist or that contains no *.txt scripts fails the test
 func TestBadDir(t *testing.T) {

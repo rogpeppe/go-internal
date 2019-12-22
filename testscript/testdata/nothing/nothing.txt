@@ -1,0 +1,5 @@
+# Intentionally empty test script; used to test GOTMPDIR
+
+-- README.md --
+This file exists so that a test for GOTMPDIR can verify the existence of a file
+within TempDir once scripts have finished.
