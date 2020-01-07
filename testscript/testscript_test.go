@@ -202,6 +202,32 @@ func TestTestwork(t *testing.T) {
 	}
 }
 
+// TestWorkdirRoot tests that a non zero value in Params.WorkdirRoot is honoured
+func TestWorkdirRoot(t *testing.T) {
+	td, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(td)
+	params := Params{
+		Dir:         filepath.Join("testdata", "nothing"),
+		WorkdirRoot: td,
+	}
+	// Run as a sub-test so that this call blocks until the sub-tests created by
+	// calling Run (which themselves call t.Parallel) complete.
+	t.Run("run tests", func(t *testing.T) {
+		Run(t, params)
+	})
+	// Verify that we have a single go-test-script-* named directory
+	files, err := filepath.Glob(filepath.Join(td, "script-nothing", "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("unexpected files found for kept files; got %q", files)
+	}
+}
+
 // TestBadDir verifies that invoking testscript with a directory that either
 // does not exist or that contains no *.txt scripts fails the test
 func TestBadDir(t *testing.T) {
