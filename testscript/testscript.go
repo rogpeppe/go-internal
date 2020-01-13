@@ -97,6 +97,12 @@ type Params struct {
 	// left intact for later inspection.
 	TestWork bool
 
+	// WorkdirRoot specifies the directory within which scripts' work
+	// directories will be created. Setting WorkdirRoot implies TestWork=true.
+	// If empty, the work directories will be created inside
+	// $GOTMPDIR/go-test-script*, where $GOTMPDIR defaults to os.TempDir().
+	WorkdirRoot string
+
 	// IgnoreMissedCoverage specifies that if coverage information
 	// is being generated (with the -test.coverprofile flag) and a subcommand
 	// function passed to RunMain fails to generate coverage information
@@ -160,9 +166,14 @@ func RunT(t T, p Params) {
 	if len(files) == 0 {
 		t.Fatal(fmt.Sprintf("no scripts found matching glob: %v", glob))
 	}
-	testTempDir, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-test-script")
-	if err != nil {
-		t.Fatal(err)
+	testTempDir := p.WorkdirRoot
+	if testTempDir == "" {
+		testTempDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-test-script")
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		p.TestWork = true
 	}
 	// The temp dir returned by ioutil.TempDir might be a sym linked dir (default
 	// behaviour in macOS). That could mess up matching that includes $WORK if,
@@ -528,7 +539,7 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 // abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
 func (ts *TestScript) abbrev(s string) string {
 	s = strings.Replace(s, ts.workdir, "$WORK", -1)
-	if *testWork {
+	if *testWork || ts.params.TestWork {
 		// Expose actual $WORK value in environment dump on first line of work script,
 		// so that the user can find out what directory -testwork left behind.
 		s = "WORK=" + ts.workdir + "\n" + strings.TrimPrefix(s, "WORK=$WORK\n")
