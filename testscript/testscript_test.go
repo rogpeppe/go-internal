@@ -86,7 +86,6 @@ func TestCRLFInput(t *testing.T) {
 func TestScripts(t *testing.T) {
 	// TODO set temp directory.
 	testDeferCount := 0
-	var setupFilenames []string
 	Run(t, Params{
 		Dir: "testdata",
 		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
@@ -104,9 +103,10 @@ func TestScripts(t *testing.T) {
 					testDeferCount--
 				})
 			},
-			"setup-filenames": func(ts *TestScript, neg bool, args []string) {
-				if !reflect.DeepEqual(args, setupFilenames) {
-					ts.Fatalf("setup did not see expected files; got %q want %q", setupFilenames, args)
+			"setup-filenames": func(ts *TestScript, neg bool, want []string) {
+				got := ts.Value("setupFilenames")
+				if !reflect.DeepEqual(want, got) {
+					ts.Fatalf("setup did not see expected files; got %q want %q", got, want)
 				}
 			},
 			"test-values": func(ts *TestScript, neg bool, args []string) {
@@ -159,10 +159,11 @@ func TestScripts(t *testing.T) {
 			if err != nil {
 				return fmt.Errorf("cannot read workdir: %v", err)
 			}
-			setupFilenames = nil
+			var setupFilenames []string
 			for _, info := range infos {
 				setupFilenames = append(setupFilenames, info.Name())
 			}
+			env.Values["setupFilenames"] = setupFilenames
 			env.Values["somekey"] = 1234
 			env.Vars = append(env.Vars,
 				"GONOSUMDB=*",

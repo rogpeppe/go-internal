@@ -31,7 +31,7 @@ before_install:
 install: "echo no install step required"
 
 script:
-  - go test ./...
+  - go test -race ./...
   - go mod tidy
 
   # https://github.com/golang/go/issues/27868#issuecomment-431413621
