@@ -264,6 +264,7 @@ func (ts *TestScript) setup() string {
 			homeEnvName() + "=/no-home",
 			tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 			"devnull=" + os.DevNull,
+			"/=" + string(os.PathSeparator),
 			":=" + string(os.PathListSeparator),
 		},
 		WorkDir: ts.workdir,

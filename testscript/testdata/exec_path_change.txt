@@ -1,17 +1,17 @@
 # If the PATH environment variable is set in the testscript.Params.Setup phase
 # or set directly within a script, exec should honour that PATH
 
-[!windows] env HOME=$WORK/home
-[windows]  env HOME=$WORK\home
-[windows]  env USERPROFILE=$WORK\home
-[windows]  env LOCALAPPDATA=$WORK\appdata
+[!exec:go] skip
+
+env HOME=$WORK${/}home
+[windows] env USERPROFILE=$WORK\home
+[windows] env LOCALAPPDATA=$WORK\appdata
 
 cd go
 exec go$exe version
 stdout 'go version'
 exec go$exe build
-[!windows] env PATH=$WORK/go${:}$PATH
-[windows]  env PATH=$WORK\go${:}$PATH
+env PATH=$WORK${/}go${:}$PATH
 exec go$exe version
 stdout 'This is not go'
 
