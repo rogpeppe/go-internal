@@ -69,6 +69,18 @@ func (e *Env) Defer(f func()) {
 	e.ts.Defer(f)
 }
 
+// T returns the t argument passed to the current test by the T.Run method.
+// Note that if the tests were started by calling Run,
+// the returned value will implement testing.TB.
+// Note that, despite that, the underlying value will not be of type
+// *testing.T because *testing.T does not implement T.
+//
+// If Cleanup is called on the returned value, the function will run
+// after any functions passed to Env.Defer.
+func (e *Env) T() T {
+	return e.ts.t
+}
+
 // Params holds parameters for a call to Run.
 type Params struct {
 	// Dir holds the name of the directory holding the scripts.
