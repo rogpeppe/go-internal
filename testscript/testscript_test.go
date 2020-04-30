@@ -113,6 +113,12 @@ func TestScripts(t *testing.T) {
 				if ts.Value("somekey") != 1234 {
 					ts.Fatalf("test-values did not see expected value")
 				}
+				if ts.Value("t").(T) != ts.t {
+					ts.Fatalf("test-values did not see expected t")
+				}
+				if _, ok := ts.Value("t").(testing.TB); !ok {
+					ts.Fatalf("test-values t does not implement testing.TB")
+				}
 			},
 			"testreadfile": func(ts *TestScript, neg bool, args []string) {
 				if len(args) != 1 {
@@ -165,6 +171,7 @@ func TestScripts(t *testing.T) {
 			}
 			env.Values["setupFilenames"] = setupFilenames
 			env.Values["somekey"] = 1234
+			env.Values["t"] = env.T()
 			env.Vars = append(env.Vars,
 				"GONOSUMDB=*",
 			)
