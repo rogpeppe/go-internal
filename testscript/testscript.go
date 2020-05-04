@@ -69,6 +69,27 @@ func (e *Env) Defer(f func()) {
 	e.ts.Defer(f)
 }
 
+// Getenv retrieves the value of the environment variable named by the key. It
+// returns the value, which will be empty if the variable is not present.
+func (e *Env) Getenv(key string) string {
+	key = envvarname(key)
+	for i := len(e.Vars) - 1; i >= 0; i-- {
+		if pair := strings.SplitN(e.Vars[i], "=", 2); len(pair) == 2 && envvarname(pair[0]) == key {
+			return pair[1]
+		}
+	}
+	return ""
+}
+
+// Setenv sets the value of the environment variable named by the key. It
+// panics if key is invalid.
+func (e *Env) Setenv(key, value string) {
+	if key == "" || strings.IndexByte(key, '=') != -1 {
+		panic("Setenv: invalid argument")
+	}
+	e.Vars = append(e.Vars, key+"="+value)
+}
+
 // T returns the t argument passed to the current test by the T.Run method.
 // Note that if the tests were started by calling Run,
 // the returned value will implement testing.TB.
