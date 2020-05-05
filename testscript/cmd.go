@@ -363,9 +363,7 @@ func (ts *TestScript) cmdStdin(neg bool, args []string) {
 	if len(args) != 1 {
 		ts.Fatalf("usage: stdin filename")
 	}
-	data, err := ioutil.ReadFile(ts.MkAbs(args[0]))
-	ts.Check(err)
-	ts.stdin = string(data)
+	ts.stdin = ts.ReadFile(args[0])
 }
 
 // stdout checks that the last go command standard output matches a regexp.

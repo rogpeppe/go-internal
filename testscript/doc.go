@@ -180,6 +180,8 @@ The predefined commands are:
 
 - stdin file
   Set the standard input for the next exec command to the contents of the given file.
+  File can be "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or wait command.
 
 - [!] stderr [-count=N] pattern
   Apply the grep command (see above) to the standard error
