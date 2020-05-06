@@ -85,7 +85,7 @@ func (e *Env) Getenv(key string) string {
 // panics if key is invalid.
 func (e *Env) Setenv(key, value string) {
 	if key == "" || strings.IndexByte(key, '=') != -1 {
-		panic("Setenv: invalid argument")
+		panic(fmt.Errorf("invalid environment variable key %q", key))
 	}
 	e.Vars = append(e.Vars, key+"="+value)
 }
