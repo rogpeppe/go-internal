@@ -83,6 +83,52 @@ func TestCRLFInput(t *testing.T) {
 	})
 }
 
+func TestEnv(t *testing.T) {
+	e := &Env{
+		Vars: []string{
+			"HOME=/no-home",
+			"PATH=/usr/bin",
+			"PATH=/usr/bin:/usr/local/bin",
+			"INVALID",
+		},
+	}
+
+	if got, want := e.Getenv("HOME"), "/no-home"; got != want {
+		t.Errorf("e.Getenv(\"HOME\") == %q, want %q", got, want)
+	}
+
+	e.Setenv("HOME", "/home/user")
+	if got, want := e.Getenv("HOME"), "/home/user"; got != want {
+		t.Errorf("e.Getenv(\"HOME\") == %q, want %q", got, want)
+	}
+
+	if got, want := e.Getenv("PATH"), "/usr/bin:/usr/local/bin"; got != want {
+		t.Errorf("e.Getenv(\"PATH\") == %q, want %q", got, want)
+	}
+
+	if got, want := e.Getenv("INVALID"), ""; got != want {
+		t.Errorf("e.Getenv(\"INVALID\") == %q, want %q", got, want)
+	}
+
+	for _, key := range []string{
+		"",
+		"=",
+		"key=invalid",
+	} {
+		value := ""
+		var panicValue interface{}
+		func() {
+			defer func() {
+				panicValue = recover()
+			}()
+			e.Setenv(key, value)
+		}()
+		if panicValue == nil {
+			t.Errorf("e.Setenv(%q, %q) did not panic, want panic", key, value)
+		}
+	}
+}
+
 func TestScripts(t *testing.T) {
 	// TODO set temp directory.
 	testDeferCount := 0
