@@ -1,7 +1,9 @@
+[!exec:cat] skip
+
 stdin hello.txt
-[exec:cat] exec cat
+exec cat
 stdout hello
-[exec:cat] exec cat
+exec cat
 ! stdout hello
 
 
