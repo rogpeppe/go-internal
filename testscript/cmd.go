@@ -74,7 +74,7 @@ func (ts *TestScript) cmdChmod(neg bool, args []string) {
 	if len(args) != 2 {
 		ts.Fatalf("usage: chmod mode file")
 	}
-	mode, err := strconv.ParseInt(args[0], 8, 32)
+	mode, err := strconv.ParseUint(args[0], 8, 32)
 	if err != nil {
 		ts.Fatalf("bad file mode %q: %v", args[0], err)
 	}
