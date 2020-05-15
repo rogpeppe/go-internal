@@ -116,9 +116,9 @@ The predefined commands are:
 - cd dir
   Change to the given directory for future commands.
 
-- chmod mode file
-
-  Change the permissions of file or directory to the given octal mode (000 to 777).
+- chmod perm path...
+  Change the permissions of the files or directories named by the path arguments
+  to the given octal mode (000 to 777).
 
 - cmp file1 file2
   Check that the named files have the same content.

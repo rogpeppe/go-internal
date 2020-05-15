@@ -71,25 +71,23 @@ func (ts *TestScript) cmdCd(neg bool, args []string) {
 }
 
 func (ts *TestScript) cmdChmod(neg bool, args []string) {
-	if len(args) != 2 {
-		ts.Fatalf("usage: chmod mode file")
-	}
-	mode, err := strconv.ParseInt(args[0], 8, 32)
-	if err != nil {
-		ts.Fatalf("bad file mode %q: %v", args[0], err)
-	}
-	if mode > 0777 {
-		ts.Fatalf("unsupported file mode %.3o", mode)
-	}
-	err = os.Chmod(ts.MkAbs(args[1]), os.FileMode(mode))
 	if neg {
-		if err == nil {
-			ts.Fatalf("unexpected chmod success")
-		}
-		return
+		ts.Fatalf("unsupported: ! chmod")
 	}
-	if err != nil {
-		ts.Fatalf("unexpected chmod failure: %v", err)
+	if len(args) != 2 {
+		ts.Fatalf("usage: chmod perm paths...")
+	}
+	perm, err := strconv.ParseUint(args[0], 8, 32)
+	if err != nil || perm&uint64(os.ModePerm) != perm {
+		ts.Fatalf("invalid mode: %s", args[0])
+	}
+	for _, arg := range args[1:] {
+		path := arg
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(ts.cd, arg)
+		}
+		err := os.Chmod(path, os.FileMode(perm))
+		ts.Check(err)
 	}
 }
 
