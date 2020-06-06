@@ -19,10 +19,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/parnurzeal/gorequest"
 
 	"github.com/rogpeppe/go-internal/imports"
 	"github.com/rogpeppe/go-internal/internal/os/execpath"
@@ -302,6 +305,7 @@ type TestScript struct {
 	stdin         string                      // standard input to next 'go' command; set by 'stdin' command.
 	stdout        string                      // standard output from last 'go' command; for 'stdout' command
 	stderr        string                      // standard error from last 'go' command; for 'stderr' command
+	status        int                         // status code from exec or http
 	stopped       bool                        // test wants to stop early
 	start         time.Time                   // time phase started
 	background    []backgroundCmd             // backgrounded 'exec' and 'go' commands
@@ -309,6 +313,8 @@ type TestScript struct {
 	archive       *txtar.Archive              // the testscript being run.
 	scriptFiles   map[string]string           // files stored in the txtar archive (absolute paths -> path in script)
 	scriptUpdates map[string]string           // updates to testscript files via UpdateScripts.
+
+	httpClients   map[string]*gorequest.SuperAgent
 
 	ctxt context.Context // per TestScript context
 }
@@ -724,6 +730,7 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 	cmd.Stderr = &stderrBuf
 	if err = cmd.Start(); err == nil {
 		err = ctxWait(ts.ctxt, cmd)
+		ts.status = cmd.ProcessState.ExitCode()
 	}
 	ts.stdin = ""
 	return stdoutBuf.String(), stderrBuf.String(), err
@@ -962,4 +969,214 @@ func tempEnvName() string {
 	default:
 		return "TMPDIR"
 	}
+}
+
+const HTTP2_GOAWAY_CHECK = "http2: server sent GOAWAY and closed the connection"
+
+// call runs the given function and then returns collected standard output and standard error.
+func (ts *TestScript) http(args []string) (string, string, int, error) {
+	// TODO, turn this into a log line
+	// fmt.Println("HTTP:", args)
+
+	if args[0] == "client" {
+		err := ts.manageHttpClient(args[1:])
+		ts.Check(err)
+		return "", "", 0, nil
+	}
+
+	req, err := ts.reqFromArgs(args)
+	ts.Check(err)
+
+	resp, body, errs := req.End()
+	body += "\n"
+
+	if len(errs) != 0 && !strings.Contains(errs[0].Error(), HTTP2_GOAWAY_CHECK) {
+		return "", body, resp.StatusCode, fmt.Errorf("Internal Weirdr Error:\b%v\n%s\n", errs, body)
+	}
+	if len(errs) != 0 {
+		return "", body, resp.StatusCode, fmt.Errorf("Internal Error:\n%v\n%s\n", errs, body)
+	}
+	if resp.StatusCode >= 500 {
+		return "", body, resp.StatusCode, fmt.Errorf("Internal Error:\n%v\n%s\n", errs, body)
+	}
+	if resp.StatusCode >= 400 {
+		return "", body, resp.StatusCode, fmt.Errorf("Bad Request:\n%s\n", body)
+	}
+
+	return body, "", resp.StatusCode, nil
+}
+
+func (ts *TestScript) manageHttpClient(args []string) (error) {
+	L := len(args)
+	if L < 1 {
+		ts.Fatalf("usage: http client [new,del] <name> http-args...")
+	}
+
+	key, name := args[0], "default"
+	if len(args) == 1 {
+		args = args[1:]
+	} else {
+		name = args[1]
+		args = args[2:]
+	}
+
+	if ts.httpClients == nil {
+		ts.httpClients = make(map[string]*gorequest.SuperAgent)
+	}
+
+	switch key {
+	case "new":
+		req, err := ts.newReqFromArgs(args)
+		ts.Check(err)
+		ts.httpClients[name] = req
+
+	case "mod":
+		req, ok := ts.httpClients[name]
+		if !ok {
+			ts.Fatalf("unknown http client %q", name)
+		}
+		req, err := ts.applyArgsToReq(req, args)
+		ts.Check(err)
+		ts.httpClients[name] = req
+
+	case "del":
+		_, ok := ts.httpClients[name]
+		if !ok {
+			ts.Fatalf("unknown http client %q", name)
+		}
+		delete(ts.httpClients, name)
+
+	default:
+		ts.Fatalf("usage: http client <op> args...")
+	}
+
+	return nil
+}
+
+func (ts *TestScript) reqFromArgs(args []string) (*gorequest.SuperAgent, error) {
+	// first arg is a known client
+	if req, ok := ts.httpClients[args[0]]; ok {
+		R := req.Clone()
+		return ts.applyArgsToReq(R, args[1:])
+	}
+	return ts.newReqFromArgs(args)
+}
+
+func (ts *TestScript) newReqFromArgs(args []string) (*gorequest.SuperAgent, error) {
+	// otherwise create a one-time req obj
+	req := gorequest.New()
+	req = ts.applyDefaultsToReq(req)
+	return ts.applyArgsToReq(req, args)
+}
+
+func (ts *TestScript) applyDefaultsToReq(req *gorequest.SuperAgent) (*gorequest.SuperAgent) {
+
+	req.Method = "GET"
+
+	return req
+}
+
+func (ts *TestScript) applyArgsToReq(req *gorequest.SuperAgent, args []string) (*gorequest.SuperAgent, error) {
+	var err error
+	for _, arg := range args {
+		req, err = ts.applyArgToReq(req, arg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return req, nil
+}
+
+func (ts *TestScript) applyArgToReq(req *gorequest.SuperAgent, arg string) (*gorequest.SuperAgent, error) {
+	// fmt.Printf("  APPLY: %q\n", flds)
+
+	flds := strings.SplitN(arg, "=", 2)
+	key := flds[0]
+	val := ""
+	if len(flds) == 2 {
+		val = flds[1]
+	}
+
+	K := strings.ToUpper(key)
+
+
+	switch K {
+	case "U", "URL":
+		req.Url = val
+
+	case "T", "TYPE":
+		req.Url = val
+
+	case "Q", "QUERY":
+		if strings.HasPrefix(val, "@") {
+			val = ts.ReadFile(val[1:])
+		}
+		req = req.Query(val)
+
+	case "R", "RETRY":
+		flds = strings.Fields(val)
+		if len(flds) < 3 {
+			ts.Fatalf("http retry usage: RETRY:'<count> <timer> [codes...]'")
+		}
+		cnt, tmr, codes := flds[0], flds[1], flds[2:]
+
+		c, err := strconv.Atoi(cnt)
+		ts.Check(err)
+
+		t, err := time.ParseDuration(tmr)
+		ts.Check(err)
+
+		cs := []int{}
+		for _, code := range codes {
+			i, err := strconv.Atoi(code)
+			ts.Check(err)
+			cs = append(cs, i)
+		}
+
+		req = req.Retry(c, t, cs...)
+
+	case "D", "DATA", "S", "SEND":
+		if strings.HasPrefix(val, "@") {
+			val = ts.ReadFile(val[1:])
+		}
+		req = req.Send(val)
+
+	case "F", "FILE":
+		flds := strings.Split(val, ":")
+		filename, fieldname := strings.TrimSpace(flds[0]), ""
+		if len(flds) > 1 {
+			fieldname = strings.TrimSpace(flds[1])
+		}
+		content := ts.ReadFile(filename)
+		req = req.SendFile([]byte(content), filename, fieldname)
+
+	case "A", "AUTH":
+		flds := strings.Split(val, ":")
+		k, v := strings.TrimSpace(flds[0]), strings.TrimSpace(flds[1])
+		req = req.SetBasicAuth(k, v)
+
+	case "H", "HEADER":
+		flds := strings.Split(val, ":")
+		k, v := strings.TrimSpace(flds[0]), strings.TrimSpace(flds[1])
+		req = req.Set(k, v)
+
+	case "M", "METHOD":
+		req.Method = K
+	// Specially recognized key only args
+	case "GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS":
+		req.Method = K
+
+	default:
+
+		// check some special prefixes
+		if strings.HasPrefix(key, "http") {
+			req.Url = key
+			return req, nil
+		}
+
+		return nil, fmt.Errorf("unknown http arg/key: %q / %q", arg, key)
+	}
+
+	return req, nil
 }

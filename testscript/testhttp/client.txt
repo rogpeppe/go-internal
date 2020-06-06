@@ -1,0 +1,8 @@
+# Test http client helpers
+
+http client new foo POST https://postman-echo.com/post
+
+http foo D='{"foo":"bar"}'
+http foo D='{"cow":"moo"}'
+
+http client del foo

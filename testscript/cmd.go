@@ -34,6 +34,7 @@ var scriptCmds = map[string]func(*TestScript, int, []string){
 	"exec":    (*TestScript).cmdExec,
 	"exists":  (*TestScript).cmdExists,
 	"grep":    (*TestScript).cmdGrep,
+	"http":    (*TestScript).cmdHttp,
 	"mkdir":   (*TestScript).cmdMkdir,
 	"rm":      (*TestScript).cmdRm,
 	"unquote": (*TestScript).cmdUnquote,
@@ -41,14 +42,45 @@ var scriptCmds = map[string]func(*TestScript, int, []string){
 	"stdin":   (*TestScript).cmdStdin,
 	"stderr":  (*TestScript).cmdStderr,
 	"stdout":  (*TestScript).cmdStdout,
+	"status":  (*TestScript).cmdStatus,
 	"stop":    (*TestScript).cmdStop,
 	"symlink": (*TestScript).cmdSymlink,
 	"wait":    (*TestScript).cmdWait,
 }
+
+
+// http	makes an http call.
+func (ts *TestScript) cmdHttp(neg int, args []string) {
+	if len(args) < 1 {
+		ts.Fatalf("usage: http function [args...]")
+	}
+
+	var err error
+	ts.stdout, ts.stderr, ts.status, err = ts.http(args)
+	if ts.stdout != "" {
+		fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+	}
+	if ts.stderr != "" {
+		fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
+	}
+	if err == nil && neg > 0 {
+		ts.Fatalf("unexpected http success")
+	}
+
+	if err != nil {
+		fmt.Fprintf(&ts.log, "[%v]\n", err)
+		if ts.ctxt.Err() != nil {
+			ts.Fatalf("test timed out while making http request")
+		} else if neg > 0 {
+			ts.Fatalf("unexpected http failure")
+		}
+	}
+}
+
 // call runs the given function.
 func (ts *TestScript) cmdCall(neg int, args []string) {
 	if len(args) < 1 {
-		ts.Fatalf("usage: exec function [args...]")
+		ts.Fatalf("usage: call function [args...]")
 	}
 
 	var err error
@@ -249,6 +281,7 @@ func (ts *TestScript) cmdEnv(neg int, args []string) {
 
 // exec runs the given command.
 func (ts *TestScript) cmdExec(neg int, args []string) {
+
 	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
 		ts.Fatalf("usage: exec program [args...] [&]")
 	}
@@ -260,8 +293,9 @@ func (ts *TestScript) cmdExec(neg int, args []string) {
 		if err == nil {
 			wait := make(chan struct{})
 			go func() {
-				ctxWait(ts.ctxt, cmd)
+				err = ctxWait(ts.ctxt, cmd)
 				close(wait)
+				ts.status = cmd.ProcessState.ExitCode()
 			}()
 			ts.background = append(ts.background, backgroundCmd{cmd, wait, neg})
 		}
@@ -284,7 +318,7 @@ func (ts *TestScript) cmdExec(neg int, args []string) {
 		if ts.ctxt.Err() != nil {
 			ts.Fatalf("test timed out while running command")
 		} else if neg == 0 {
-			ts.Fatalf("unexpected command failure")
+			ts.Fatalf("unexpected exec command failure")
 		}
 	}
 }
@@ -404,6 +438,34 @@ func (ts *TestScript) cmdStdout(neg int, args []string) {
 // stderr checks that the last go command standard output matches a regexp.
 func (ts *TestScript) cmdStderr(neg int, args []string) {
 	scriptMatch(ts, neg, args, ts.stderr, "stderr")
+}
+
+// status checks the exit or status code from the last exec or http call
+func (ts *TestScript) cmdStatus(neg int, args []string) {
+	if len(args) != 1 {
+		ts.Fatalf("usage: status <int>")
+	}
+
+	// Don't care
+	if neg < 0 {
+		return
+	}
+
+	// Check arg
+	code, err := strconv.Atoi(args[0])
+	if err != nil {
+		ts.Fatalf("error: %v\nusage: stdin <int>", err)
+	}
+
+	// wanted different but got samd
+	if neg > 0 && ts.status == code {
+		ts.Fatalf("unexpected status match: %d", code)
+	}
+
+	if neg == 0 && ts.status != code {
+		ts.Fatalf("unexpected status mismatch:  wated: %d  got %d", code, ts.status)
+	}
+
 }
 
 // grep checks that file content matches a regexp.

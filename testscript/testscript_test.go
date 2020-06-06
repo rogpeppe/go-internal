@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	os.Exit(RunMain(m, map[string]func() int{
 		"printargs":     printArgs,
 		"echo":          echo,
-		"status":        exitWithStatus,
+		// "status":        exitWithStatus,
 		"signalcatcher": signalCatcher,
 	}))
 }
@@ -126,6 +126,12 @@ func TestEnv(t *testing.T) {
 			t.Errorf("e.Setenv(%q) did not panic, want panic", key)
 		}
 	}
+}
+
+func TestHttp(t *testing.T) {
+	Run(t, Params{
+		Dir: "testhttp",
+	})
 }
 
 func TestScripts(t *testing.T) {
@@ -334,7 +340,7 @@ func interrupt(ts *TestScript, neg int, args []string) {
 	bg[0].Process.Signal(os.Interrupt)
 }
 
-func waitFile(ts *TestScript, neg bool, args []string) {
+func waitFile(ts *TestScript, neg int, args []string) {
 	if neg != 0 {
 		ts.Fatalf("waitfile does not support neg")
 	}
