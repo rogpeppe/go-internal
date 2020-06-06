@@ -12,6 +12,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -110,6 +111,9 @@ type Params struct {
 	// Dir is interpreted relative to the current test directory.
 	Dir string
 
+	// Glob holds the patter to match, defaults to '*.txt'
+	Glob string
+
 	// Setup is called, if not nil, to complete any setup required
 	// for a test. The WorkDir and Vars fields will have already
 	// been initialized and all the files extracted into WorkDir,
@@ -124,7 +128,12 @@ type Params struct {
 
 	// Cmds holds a map of commands available to the script.
 	// It will only be consulted for commands not part of the standard set.
-	Cmds map[string]func(ts *TestScript, neg bool, args []string)
+	Cmds map[string]func(ts *TestScript, neg int, args []string)
+
+	// Funcs holds a map of functions available to the script.
+	// These work like exec and use 'call' instead.
+	// Use these to facilitate code coverage (exec does not capture this).
+	Funcs map[string]func(ts *TestScript, args []string) error
 
 	// TestWork specifies that working directories should be
 	// left intact for later inspection.
@@ -152,6 +161,14 @@ type Params struct {
 	// a manual change will be needed if it is not unquoted in the
 	// script.
 	UpdateScripts bool
+
+	// Line prefix which indicates a new phase
+	// defaults to "#"
+	PhasePrefix   string
+
+	// Comment prefix for a line
+	// defaults to "~"
+	CommentPrefix string
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
@@ -188,10 +205,27 @@ func (t tshim) Verbose() bool {
 	return testing.Verbose()
 }
 
+func paramDefaults(p Params) Params {
+	if p.Glob == "" {
+		p.Glob = "*.txt"
+	}
+	if p.PhasePrefix == "" {
+		p.PhasePrefix = "#"
+	}
+	if p.CommentPrefix == "" {
+		p.CommentPrefix = "~"
+	}
+
+	return p
+}
+
 // RunT is like Run but uses an interface type instead of the concrete *testing.T
 // type to make it possible to use testscript functionality outside of go test.
 func RunT(t T, p Params) {
-	glob := filepath.Join(p.Dir, "*.txt")
+	// add any defaults that were not specified
+	p = paramDefaults(p)
+
+	glob := filepath.Join(p.Dir, p.Glob)
 	files, err := filepath.Glob(glob)
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +316,7 @@ type TestScript struct {
 type backgroundCmd struct {
 	cmd  *exec.Cmd
 	wait <-chan struct{}
-	neg  bool // if true, cmd should fail
+	neg  int // if true, cmd should fail
 }
 
 // setup sets up the test execution temporary directory and environment.
@@ -389,7 +423,7 @@ func (ts *TestScript) run() {
 	// With -v or -testwork, start log with full environment.
 	if *testWork || ts.t.Verbose() {
 		// Display environment.
-		ts.cmdEnv(false, nil)
+		ts.cmdEnv(0, nil)
 		fmt.Fprintf(&ts.log, "\n")
 		ts.mark = ts.log.Len()
 	}
@@ -409,7 +443,7 @@ Script:
 		}
 
 		// # is a comment indicating the start of new phase.
-		if strings.HasPrefix(line, "#") {
+		if strings.HasPrefix(line, ts.params.PhasePrefix) {
 			// If there was a previous phase, it succeeded,
 			// so rewind the log to delete its details (unless -v is in use).
 			// If nothing has happened at all since the mark,
@@ -423,6 +457,12 @@ Script:
 			fmt.Fprintf(&ts.log, "%s\n", line)
 			ts.mark = ts.log.Len()
 			ts.start = time.Now()
+			continue
+		}
+
+		// Line comment, this will be annoying to anyone already using testsuite
+		// .. they can do a find and replace pretty easily though, can probably do with just sed
+		if strings.HasPrefix(line, ts.params.CommentPrefix) {
 			continue
 		}
 
@@ -461,12 +501,18 @@ Script:
 
 		// Command prefix ! means negate the expectations about this command:
 		// go command should fail, match should not be found, etc.
-		neg := false
+		neg := 0
 		if args[0] == "!" {
-			neg = true
+			neg = 1
 			args = args[1:]
 			if len(args) == 0 {
 				ts.Fatalf("! on line by itself")
+			}
+		} else if args[0] == "?" {
+			neg = -1
+			args = args[1:]
+			if len(args) == 0 {
+				ts.Fatalf("? on line by itself")
 			}
 		}
 
@@ -491,7 +537,7 @@ Script:
 	for _, bg := range ts.background {
 		interruptProcess(bg.cmd.Process)
 	}
-	ts.cmdWait(false, nil)
+	ts.cmdWait(0, nil)
 
 	// Final phase ended.
 	rewind()
@@ -605,6 +651,62 @@ func (ts *TestScript) Logf(format string, args ...interface{}) {
 	format = strings.TrimSuffix(format, "\n")
 	fmt.Fprintf(&ts.log, format, args...)
 	ts.log.WriteByte('\n')
+}
+
+// call runs the given function and then returns collected standard output and standard error.
+func (ts *TestScript) call(function string, args ...string) (string, string, error) {
+
+	fn, ok := ts.params.Funcs[function]
+	if !ok {
+		ts.Fatalf("unknown function %q", function)
+		return "", "", fmt.Errorf("unknown function%q", function)
+	}
+
+	// backup originals
+	oldstdout := os.Stdout
+	oldstderr := os.Stderr
+    stdout, outw, _ := os.Pipe()
+    stderr, errw, _ := os.Pipe()
+    os.Stdout = stdout
+    os.Stderr = stderr
+
+	var err error
+    done := make(chan string)
+    outC := make(chan string, 1)
+    errC := make(chan string, 1)
+
+	// call the function
+	go func () {
+		err = fn(ts, args)
+		done <- "done"
+	}()
+
+    // copy the output in a separate goroutine so printing can't block indefinitely
+    go func() {
+        var bufout bytes.Buffer
+        io.Copy(&bufout, stdout)
+        outC <- bufout.String()
+    }()
+    go func() {
+        var buferr bytes.Buffer
+        io.Copy(&buferr, stderr)
+        errC <- buferr.String()
+    }()
+
+	// wait for function
+
+	<-done
+	// restore OS stds
+	outw.Close()
+	errw.Close()
+    os.Stdout = oldstdout
+    os.Stderr = oldstderr
+
+	// get content
+    funcout := <-outC
+    funcerr := <-errC
+
+	return funcout, funcerr, err
 }
 
 // exec runs the given command line (an actual subprocess, not simulated)

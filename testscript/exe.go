@@ -61,7 +61,7 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 		// We're not in a subcommand.
 		for name := range commands {
 			name := name
-			scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
+			scriptCmds[name] = func(ts *TestScript, neg int, args []string) {
 				path, err := os.Executable()
 				if err != nil {
 					ts.Fatalf("cannot determine path to test binary: %v", err)

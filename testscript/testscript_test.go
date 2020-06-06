@@ -133,12 +133,12 @@ func TestScripts(t *testing.T) {
 	testDeferCount := 0
 	Run(t, Params{
 		Dir: "testdata",
-		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
+		Cmds: map[string]func(ts *TestScript, neg int, args []string){
 			"setSpecialVal":    setSpecialVal,
 			"ensureSpecialVal": ensureSpecialVal,
 			"interrupt":        interrupt,
 			"waitfile":         waitFile,
-			"testdefer": func(ts *TestScript, neg bool, args []string) {
+			"testdefer": func(ts *TestScript, neg int, args []string) {
 				testDeferCount++
 				n := testDeferCount
 				ts.Defer(func() {
@@ -148,13 +148,13 @@ func TestScripts(t *testing.T) {
 					testDeferCount--
 				})
 			},
-			"setup-filenames": func(ts *TestScript, neg bool, want []string) {
+			"setup-filenames": func(ts *TestScript, neg int, want []string) {
 				got := ts.Value("setupFilenames")
 				if !reflect.DeepEqual(want, got) {
 					ts.Fatalf("setup did not see expected files; got %q want %q", got, want)
 				}
 			},
-			"test-values": func(ts *TestScript, neg bool, args []string) {
+			"test-values": func(ts *TestScript, neg int, args []string) {
 				if ts.Value("somekey") != 1234 {
 					ts.Fatalf("test-values did not see expected value")
 				}
@@ -165,7 +165,7 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("test-values t does not implement testing.TB")
 				}
 			},
-			"testreadfile": func(ts *TestScript, neg bool, args []string) {
+			"testreadfile": func(ts *TestScript, neg int, args []string) {
 				if len(args) != 1 {
 					ts.Fatalf("testreadfile <filename>")
 				}
@@ -175,7 +175,7 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("reading %q; got %q want %q", args[0], got, want)
 				}
 			},
-			"testscript-update": func(ts *TestScript, neg bool, args []string) {
+			"testscript-update": func(ts *TestScript, neg int, args []string) {
 				// Run testscript in testscript. Oooh! Meta!
 				if len(args) != 1 {
 					ts.Fatalf("testscript <dir>")
@@ -194,7 +194,7 @@ func TestScripts(t *testing.T) {
 						UpdateScripts: true,
 					})
 				}()
-				if neg {
+				if neg > 0 {
 					if len(t.failMsgs) == 0 {
 						ts.Fatalf("testscript-update unexpectedly succeeded")
 					}
@@ -307,11 +307,11 @@ func TestBadDir(t *testing.T) {
 	}
 }
 
-func setSpecialVal(ts *TestScript, neg bool, args []string) {
+func setSpecialVal(ts *TestScript, neg int, args []string) {
 	ts.Setenv("SPECIALVAL", "42")
 }
 
-func ensureSpecialVal(ts *TestScript, neg bool, args []string) {
+func ensureSpecialVal(ts *TestScript, neg int, args []string) {
 	want := "42"
 	if got := ts.Getenv("SPECIALVAL"); got != want {
 		ts.Fatalf("expected SPECIALVAL to be %q; got %q", want, got)
@@ -320,8 +320,8 @@ func ensureSpecialVal(ts *TestScript, neg bool, args []string) {
 
 // interrupt interrupts the current background command.
 // Note that this will not work under Windows.
-func interrupt(ts *TestScript, neg bool, args []string) {
-	if neg {
+func interrupt(ts *TestScript, neg int, args []string) {
+	if neg != 0 {
 		ts.Fatalf("interrupt does not support neg")
 	}
 	if len(args) > 0 {
@@ -335,7 +335,7 @@ func interrupt(ts *TestScript, neg bool, args []string) {
 }
 
 func waitFile(ts *TestScript, neg bool, args []string) {
-	if neg {
+	if neg != 0 {
 		ts.Fatalf("waitfile does not support neg")
 	}
 	if len(args) != 1 {
