@@ -97,11 +97,18 @@ func (ts *TestScript) cmdCmp(neg bool, args []string) {
 		// It would be strange to say "this file can have any content except this precise byte sequence".
 		ts.Fatalf("unsupported: ! cmp")
 	}
-	if len(args) != 2 {
-		ts.Fatalf("usage: cmp file1 file2")
+
+	text := false
+	if len(args) > 0 && args[0] == "-text" {
+		text = true
+		args = args[1:]
 	}
 
-	ts.doCmdCmp(args, false)
+	if len(args) != 2 {
+		ts.Fatalf("usage: cmp [-text] file1 file2")
+	}
+
+	ts.doCmdCmp(args, text, false)
 }
 
 // cmpenv compares two files with environment variable substitution.
@@ -109,15 +116,25 @@ func (ts *TestScript) cmdCmpenv(neg bool, args []string) {
 	if neg {
 		ts.Fatalf("unsupported: ! cmpenv")
 	}
-	if len(args) != 2 {
-		ts.Fatalf("usage: cmpenv file1 file2")
+
+	text := false
+	if len(args) > 0 && args[0] == "-text" {
+		text = true
+		args = args[1:]
 	}
-	ts.doCmdCmp(args, true)
+
+	if len(args) != 2 {
+		ts.Fatalf("usage: cmpenv [-text] file1 file2")
+	}
+	ts.doCmdCmp(args, text, true)
 }
 
-func (ts *TestScript) doCmdCmp(args []string, env bool) {
+func (ts *TestScript) doCmdCmp(args []string, text, env bool) {
 	name1, name2 := args[0], args[1]
 	text1 := ts.ReadFile(name1)
+	if text {
+		text1 = toText(text1)
+	}
 
 	absName2 := ts.MkAbs(name2)
 	data, err := ioutil.ReadFile(absName2)
@@ -125,6 +142,9 @@ func (ts *TestScript) doCmdCmp(args []string, env bool) {
 	text2 := string(data)
 	if env {
 		text2 = ts.expand(text2)
+	}
+	if text {
+		text2 = toText(text2)
 	}
 	if text1 == text2 {
 		return
@@ -519,4 +539,15 @@ func scriptMatch(ts *TestScript, neg bool, args []string, text, name string) {
 			}
 		}
 	}
+}
+
+// toText returns a canonical text representation of s by converting all Windows
+// line endings to UNIX line endings and adding a terminating newline if
+// missing.
+func toText(s string) string {
+	s = strings.Replace(s, "\r\n", "\n", -1)
+	if !strings.HasSuffix(s, "\n") {
+		s = s + "\n"
+	}
+	return s
 }
