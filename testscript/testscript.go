@@ -143,10 +143,10 @@ type Params struct {
 	// error will be ignored.
 	IgnoreMissedCoverage bool
 
-	// UpdateScripts specifies that if a `cmp` command fails and
-	// its first argument is `stdout` or `stderr` and its second argument
-	// refers to a file inside the testscript file, the command will succeed
-	// and the testscript file will be updated to reflect the actual output.
+	// UpdateScripts specifies that if a `cmp` command fails and its second
+	// argument refers to a file inside the testscript file, the command will
+	// succeed and the testscript file will be updated to reflect the actual
+	// content (which could be stdout, stderr or a real file).
 	//
 	// The content will be quoted with txtar.Quote if needed;
 	// a manual change will be needed if it is not unquoted in the
