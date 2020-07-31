@@ -1,3 +1,5 @@
+# Verify that comparing stdout against a file not in the archive does nothing
+
 unquote scripts/testscript.txt
 cp scripts/testscript.txt unchanged
 ! testscript-update scripts

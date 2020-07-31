@@ -131,7 +131,7 @@ func (ts *TestScript) doCmdCmp(args []string, env bool) {
 	if text1 == text2 {
 		return
 	}
-	if ts.params.UpdateScripts && !env && (args[0] == "stdout" || args[0] == "stderr") {
+	if ts.params.UpdateScripts && !env {
 		if scriptFile, ok := ts.scriptFiles[absName2]; ok {
 			ts.scriptUpdates[scriptFile] = text1
 			return
