@@ -1,6 +1,10 @@
 [!exec:echo] skip
 [!exec:false] skip
 
+# TODO: the '\n' below doesn't work on Windows on Github Actions, which does
+# have coreutils like "echo" installed. Perhaps they emit CRLF?
+[windows] skip
+
 exec echo foo
 stdout foo
 
