@@ -5,6 +5,7 @@
 package testscript
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,25 +25,26 @@ import (
 // NOTE: If you make changes here, update doc.go.
 //
 var scriptCmds = map[string]func(*TestScript, bool, []string){
-	"cd":      (*TestScript).cmdCd,
-	"chmod":   (*TestScript).cmdChmod,
-	"cmp":     (*TestScript).cmdCmp,
-	"cmpenv":  (*TestScript).cmdCmpenv,
-	"cp":      (*TestScript).cmdCp,
-	"env":     (*TestScript).cmdEnv,
-	"exec":    (*TestScript).cmdExec,
-	"exists":  (*TestScript).cmdExists,
-	"grep":    (*TestScript).cmdGrep,
-	"mkdir":   (*TestScript).cmdMkdir,
-	"rm":      (*TestScript).cmdRm,
-	"unquote": (*TestScript).cmdUnquote,
-	"skip":    (*TestScript).cmdSkip,
-	"stdin":   (*TestScript).cmdStdin,
-	"stderr":  (*TestScript).cmdStderr,
-	"stdout":  (*TestScript).cmdStdout,
-	"stop":    (*TestScript).cmdStop,
-	"symlink": (*TestScript).cmdSymlink,
-	"wait":    (*TestScript).cmdWait,
+	"cd":       (*TestScript).cmdCd,
+	"chmod":    (*TestScript).cmdChmod,
+	"cmp":      (*TestScript).cmdCmp,
+	"cmpenv":   (*TestScript).cmdCmpenv,
+	"cp":       (*TestScript).cmdCp,
+	"env":      (*TestScript).cmdEnv,
+	"exec":     (*TestScript).cmdExec,
+	"exists":   (*TestScript).cmdExists,
+	"grep":     (*TestScript).cmdGrep,
+	"mkdir":    (*TestScript).cmdMkdir,
+	"rm":       (*TestScript).cmdRm,
+	"unquote":  (*TestScript).cmdUnquote,
+	"skip":     (*TestScript).cmdSkip,
+	"stdin":    (*TestScript).cmdStdin,
+	"stderr":   (*TestScript).cmdStderr,
+	"stdout":   (*TestScript).cmdStdout,
+	"stop":     (*TestScript).cmdStop,
+	"symlink":  (*TestScript).cmdSymlink,
+	"unix2dos": (*TestScript).cmdUNIX2DOS,
+	"wait":     (*TestScript).cmdWait,
 }
 
 // cd changes to a different directory.
@@ -407,6 +409,27 @@ func (ts *TestScript) cmdSymlink(neg bool, args []string) {
 	// Note that the link target args[2] is not interpreted with MkAbs:
 	// it will be interpreted relative to the directory file is in.
 	ts.Check(os.Symlink(args[2], ts.MkAbs(args[0])))
+}
+
+// cmdUNIX2DOS converts files from UNIX line endings to DOS line endings.
+func (ts *TestScript) cmdUNIX2DOS(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! unix2dos")
+	}
+	if len(args) < 1 {
+		ts.Fatalf("usage: unix2dos paths...")
+	}
+	for _, arg := range args {
+		filename := ts.MkAbs(arg)
+		data, err := ioutil.ReadFile(filename)
+		if err != nil {
+			ts.Fatalf("%s: %v", filename, err)
+		}
+		data = bytes.Join(bytes.Split(data, []byte{'\n'}), []byte{'\r', '\n'})
+		if err := ioutil.WriteFile(filename, data, 0666); err != nil {
+			ts.Fatalf("%s: %v", filename, err)
+		}
+	}
 }
 
 // Tait waits for background commands to exit, setting stderr and stdout to their result.
