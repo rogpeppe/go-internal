@@ -5,6 +5,7 @@
 package testscript
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -304,6 +305,24 @@ func TestBadDir(t *testing.T) {
 	wantMsg := regexp.MustCompile(`no scripts found matching glob: thiswillnevermatch[/\\]\*\.txt`)
 	if got := ft.failMsgs[0]; !wantMsg.MatchString(got) {
 		t.Fatalf("expected msg to match `%v`; got:\n%v", wantMsg, got)
+	}
+}
+
+func TestUNIX2DOS(t *testing.T) {
+	for data, want := range map[string]string{
+		"":         "",           // Preserve empty files.
+		"\n":       "\r\n",       // Convert LF to CRLF in a file containing a single empty line.
+		"\r\n":     "\r\n",       // Preserve CRLF in a single line file.
+		"a":        "a\r\n",      // Append CRLF to a single line file with no line terminator.
+		"a\n":      "a\r\n",      // Convert LF to CRLF in a file containing a single non-empty line.
+		"a\r\n":    "a\r\n",      // Preserve CRLF in a file containing a single non-empty line.
+		"a\nb\n":   "a\r\nb\r\n", // Convert LF to CRLF in multiline UNIX file.
+		"a\r\nb\n": "a\r\nb\r\n", // Convert LF to CRLF in a file containing a mix of UNIX and DOS lines.
+		"a\nb\r\n": "a\r\nb\r\n", // Convert LF to CRLF in a file containing a mix of UNIX and DOS lines.
+	} {
+		if got, err := unix2DOS([]byte(data)); err != nil || !bytes.Equal(got, []byte(want)) {
+			t.Errorf("unix2DOS(%q) == %q, %v, want %q, nil", data, got, err, want)
+		}
 	}
 }
 

@@ -5,6 +5,7 @@
 package testscript
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -422,11 +423,10 @@ func (ts *TestScript) cmdUNIX2DOS(neg bool, args []string) {
 	for _, arg := range args {
 		filename := ts.MkAbs(arg)
 		data, err := ioutil.ReadFile(filename)
-		if err != nil {
-			ts.Fatalf("%s: %v", filename, err)
-		}
-		data = bytes.Join(bytes.Split(data, []byte{'\n'}), []byte{'\r', '\n'})
-		if err := ioutil.WriteFile(filename, data, 0666); err != nil {
+		ts.Check(err)
+		dosData, err := unix2DOS(data)
+		ts.Check(err)
+		if err := ioutil.WriteFile(filename, dosData, 0666); err != nil {
 			ts.Fatalf("%s: %v", filename, err)
 		}
 	}
@@ -542,4 +542,22 @@ func scriptMatch(ts *TestScript, neg bool, args []string, text, name string) {
 			}
 		}
 	}
+}
+
+// unix2DOS returns data with UNIX line endings converted to DOS line endings.
+func unix2DOS(data []byte) ([]byte, error) {
+	sb := &strings.Builder{}
+	s := bufio.NewScanner(bytes.NewReader(data))
+	for s.Scan() {
+		if _, err := sb.Write(s.Bytes()); err != nil {
+			return nil, err
+		}
+		if _, err := sb.WriteString("\r\n"); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+	return []byte(sb.String()), nil
 }
