@@ -27,6 +27,7 @@ var (
 	goEnv struct {
 		GOROOT      string
 		GOCACHE     string
+		GOMODCACHE  string
 		GOPROXY     string
 		goversion   string
 		releaseTags []string
@@ -59,13 +60,14 @@ func initGoEnv() error {
 	eout, stderr, err := run("go", "env", "-json",
 		"GOROOT",
 		"GOCACHE",
+		"GOMODCACHE",
 		"GOPROXY",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to determine environment from go command: %v\n%v", err, stderr)
 	}
 	if err := json.Unmarshal(eout.Bytes(), &goEnv); err != nil {
-		return fmt.Errorf("failed to unmarshal GOROOT and GOCACHE tags from go command out: %v\n%v", err, eout)
+		return fmt.Errorf("failed to unmarshal 'go env -json' output: %v\n%v", err, eout)
 	}
 
 	version := goEnv.releaseTags[len(goEnv.releaseTags)-1]
@@ -138,6 +140,7 @@ func goEnviron(env0 []string) []string {
 		"GOOS=" + runtime.GOOS,
 		"GOROOT=" + goEnv.GOROOT,
 		"GOCACHE=" + goEnv.GOCACHE,
+		"GOMODCACHE=" + goEnv.GOMODCACHE,
 		"GOPROXY=" + goEnv.GOPROXY,
 		"goversion=" + goEnv.goversion,
 	}...)

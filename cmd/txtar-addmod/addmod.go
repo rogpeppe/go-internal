@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -100,9 +101,17 @@ func main1() int {
 		return string(out)
 	}
 
-	gopath := strings.TrimSpace(run("go", "env", "GOPATH"))
-	if gopath == "" {
-		fatalf("cannot find GOPATH")
+	var goEnv struct {
+		GOPATH     string
+		GOMODCACHE string
+	}
+	if err := json.Unmarshal([]byte(run("go", "env", "-json", "GOPATH", "GOMODCACHE")), &goEnv); err != nil {
+		fatalf("cannot unmarshal 'go env -json': %v", err)
+	}
+	modCache := goEnv.GOMODCACHE
+	if modCache == "" {
+		// For Go 1.14 and older.
+		modCache = filepath.Join(goEnv.GOPATH, "pkg", "mod")
 	}
 
 	exitCode := 0
@@ -131,13 +140,13 @@ func main1() int {
 		}
 		path = encpath
 
-		mod, err := ioutil.ReadFile(filepath.Join(gopath, "pkg/mod/cache/download", path, "@v", vers+".mod"))
+		mod, err := ioutil.ReadFile(filepath.Join(modCache, "cache", "download", path, "@v", vers+".mod"))
 		if err != nil {
 			log.Printf("%s: %v", arg, err)
 			exitCode = 1
 			continue
 		}
-		info, err := ioutil.ReadFile(filepath.Join(gopath, "pkg/mod/cache/download", path, "@v", vers+".info"))
+		info, err := ioutil.ReadFile(filepath.Join(modCache, "cache", "download", path, "@v", vers+".info"))
 		if err != nil {
 			log.Printf("%s: %v", arg, err)
 			exitCode = 1

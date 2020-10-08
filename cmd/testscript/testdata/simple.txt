@@ -1,5 +1,7 @@
 # With .gomodproxy supporting files, any GOPROXY from the
 # environment should be overridden by the test proxy.
+# Note that we want an empty GOMODCACHE, to ensure we have to download modules
+# from our proxy.
 env GOPROXY=0.1.2.3
 
 unquote file.txt
@@ -8,6 +10,7 @@ stdout 'example.com/mod'
 ! stderr .+
 
 -- file.txt --
+>env GOMODCACHE=$WORK
 >go list -m
 >stdout 'example.com/mod'
 >go list fruit.com/...
