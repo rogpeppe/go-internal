@@ -3,7 +3,7 @@
 
 [!exec:go] skip
 
-env HOME=$WORK${/}home
+env HOME=$WORK${slash}home
 [windows] env USERPROFILE=$WORK\home
 [windows] env LOCALAPPDATA=$WORK\appdata
 
@@ -11,7 +11,7 @@ cd go
 exec go$exe version
 stdout 'go version'
 exec go$exe build
-env PATH=$WORK${/}go${:}$PATH
+env PATH=$WORK${slash}go${:}$PATH
 exec go$exe version
 stdout 'This is not go'
 

@@ -2,6 +2,7 @@
 # matcher will have problems with external programs that uses the real path.
 # This script tests that $WORK is matched in a consistent way (also see #79).
 [windows] skip
+[plan9] skip
 exec pwd
 stdout ^$WORK$
 exec pwd -P
