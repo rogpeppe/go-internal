@@ -305,6 +305,9 @@ func (ts *TestScript) setup() string {
 		Cd:      ts.workdir,
 		ts:      ts,
 	}
+	if runtime.GOOS == "plan9" {
+		env.Vars = append(env.Vars, "path="+os.Getenv("path"))
+	}
 	// Must preserve SYSTEMROOT on Windows: https://github.com/golang/go/issues/25513 et al
 	if runtime.GOOS == "windows" {
 		env.Vars = append(env.Vars,
