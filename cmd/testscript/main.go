@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/rogpeppe/go-internal/goproxytest"
@@ -85,14 +84,26 @@ func mainerr() (retErr error) {
 		files = []string{"-"}
 	}
 
-	for i, fileName := range files {
+	dirNames := make(map[string]int)
+	for _, filename := range files {
 		// TODO make running files concurrent by default? If we do, note we'll need to do
 		// something smarter with the runner stdout and stderr below
-		runDir := filepath.Join(td, strconv.Itoa(i))
-		if err := os.Mkdir(runDir, 0777); err != nil {
-			return fmt.Errorf("failed to create a run directory within %v for %v: %v", td, fileName, err)
+
+		// Derive a name for the directory from the basename of file, making
+		// uniq by adding a numeric suffix in the case we otherwise end
+		// up with multiple files with the same basename
+		dirName := filepath.Base(filename)
+		count := dirNames[dirName]
+		dirNames[dirName] = count + 1
+		if count != 0 {
+			dirName = fmt.Sprintf("%s%d", dirName, count)
 		}
-		if err := run(runDir, fileName, *fVerbose, envVars.vals); err != nil {
+
+		runDir := filepath.Join(td, dirName)
+		if err := os.Mkdir(runDir, 0777); err != nil {
+			return fmt.Errorf("failed to create a run directory within %v for %v: %v", td, renderFilename(filename), err)
+		}
+		if err := run(runDir, filename, *fVerbose, envVars.vals); err != nil {
 			return err
 		}
 	}
@@ -142,7 +153,16 @@ func (r runner) Verbose() bool {
 	return r.verbose
 }
 
-func run(runDir, fileName string, verbose bool, envVars []string) error {
+// renderFilename renders filename in error messages, taking into account
+// the filename could be the special "-" (stdin)
+func renderFilename(filename string) string {
+	if filename == "-" {
+		return "<stdin>"
+	}
+	return filename
+}
+
+func run(runDir, filename string, verbose bool, envVars []string) error {
 	var ar *txtar.Archive
 	var err error
 
@@ -152,19 +172,18 @@ func run(runDir, fileName string, verbose bool, envVars []string) error {
 		return fmt.Errorf("failed to create goModProxy dir: %v", err)
 	}
 
-	if fileName == "-" {
-		fileName = "<stdin>"
+	if filename == "-" {
 		byts, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("failed to read from stdin: %v", err)
 		}
 		ar = txtar.Parse(byts)
 	} else {
-		ar, err = txtar.ParseFile(fileName)
+		ar, err = txtar.ParseFile(filename)
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to txtar parse %v: %v", fileName, err)
+		return fmt.Errorf("failed to txtar parse %v: %v", renderFilename(filename), err)
 	}
 
 	var script, gomodProxy txtar.Archive
@@ -186,7 +205,7 @@ func run(runDir, fileName string, verbose bool, envVars []string) error {
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(runDir, "script.txt"), txtar.Format(&script), 0666); err != nil {
-		return fmt.Errorf("failed to write script for %v: %v", fileName, err)
+		return fmt.Errorf("failed to write script for %v: %v", filename, err)
 	}
 
 	p := testscript.Params{
@@ -195,7 +214,7 @@ func run(runDir, fileName string, verbose bool, envVars []string) error {
 
 	if _, err := exec.LookPath("go"); err == nil {
 		if err := gotooltest.Setup(&p); err != nil {
-			return fmt.Errorf("failed to setup go tool for %v run: %v", fileName, err)
+			return fmt.Errorf("failed to setup go tool for %v run: %v", renderFilename(filename), err)
 		}
 	}
 
@@ -214,7 +233,7 @@ func run(runDir, fileName string, verbose bool, envVars []string) error {
 	if len(gomodProxy.Files) > 0 {
 		srv, err := goproxytest.NewServer(mods, "")
 		if err != nil {
-			return fmt.Errorf("cannot start proxy for %v: %v", fileName, err)
+			return fmt.Errorf("cannot start proxy for %v: %v", renderFilename(filename), err)
 		}
 		defer srv.Close()
 
@@ -260,7 +279,7 @@ func run(runDir, fileName string, verbose bool, envVars []string) error {
 	}()
 
 	if err != nil {
-		return fmt.Errorf("error running %v in %v\n", fileName, runDir)
+		return fmt.Errorf("error running %v in %v\n", renderFilename(filename), runDir)
 	}
 
 	return nil
