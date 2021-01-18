@@ -54,6 +54,7 @@ func TestScripts(t *testing.T) {
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"dropgofrompath": dropgofrompath,
 			"setfilegoproxy": setfilegoproxy,
+			"expandone":      expandone,
 		},
 	}
 	if err := gotooltest.Setup(&p); err != nil {
@@ -93,4 +94,23 @@ func setfilegoproxy(ts *testscript.TestScript, neg bool, args []string) {
 		path = "/" + path
 	}
 	ts.Setenv("GOPROXY", "file://"+path)
+}
+
+// expandone takes a single glob-style argument that should expand to
+// a single file, otherwise the command fails
+func expandone(ts *testscript.TestScript, neg bool, args []string) {
+	if len(args) != 1 {
+		ts.Fatalf("expandone: expected a single argument")
+	}
+	if neg {
+		ts.Fatalf("unsupported: ! expandone")
+	}
+	glob := ts.MkAbs(args[0])
+	matches, err := filepath.Glob(glob)
+	if err != nil {
+		ts.Fatalf("expandone: failed to glob %q: %v", glob, err)
+	}
+	if n := len(matches); n != 1 {
+		ts.Fatalf("expandone: %q matched %v files, not 1", glob, n)
+	}
 }

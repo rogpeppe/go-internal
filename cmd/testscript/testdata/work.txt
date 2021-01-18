@@ -1,8 +1,19 @@
-# should support skip
-unquote file.txt
+# Test that passing -work leaves behind the working directory
+# that contains the temporary directories within which the
+# script arguments are expanded.
+#
+# This test also covers the use of multiple scripts which share
+# the same basename, ensuring that the naming of the directories
+# within the working directory.
 
-testscript -v -work file.txt
+unquote file.txt dir/file.txt
+
+testscript -v -work file.txt dir/file.txt
 stderr '\Qtemporary work directory: '$WORK'\E[/\\]tmp[/\\]'
+expandone $WORK/tmp/testscript*/file.txt/script.txt
+expandone $WORK/tmp/testscript*/file.txt1/script.txt
 
 -- file.txt --
+>exec true
+-- dir/file.txt --
 >exec true
