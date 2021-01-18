@@ -11,6 +11,7 @@ stdout 'example.com/mod'
 
 -- file.txt --
 >env GOMODCACHE=$WORK
+>go get -d fruit.com
 >go list -m
 >stdout 'example.com/mod'
 >go list fruit.com/...
