@@ -14,7 +14,7 @@ The testscript command runs github.com/rogpeppe/go-internal/testscript scripts
 in a fresh temporary work directory tree.
 
 Usage:
-    testscript [-v] [-e VAR]... files...
+    testscript [-v] [-e VAR]... [-u] files...
 
 The testscript command is designed to make it easy to create self-contained
 reproductions of command sequences.
@@ -35,6 +35,12 @@ Environment variables can be passed through to each script with the -e flag,
 where VAR is the name of the variable. Variables override testscript-defined
 values, with the exception of WORK which cannot be overridden. The -e flag can
 appear multiple times to specify multiple variables.
+
+The -u flag specifies that if a cmp command within a testscript fails and its
+second argument refers to a file inside the testscript file, the command will
+succeed and the testscript file will be updated to reflect the actual content.
+As such, this is the cmd/testcript equivalent of
+testscript.Params.UpdateScripts.
 
 Examples
 ========
