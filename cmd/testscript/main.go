@@ -62,6 +62,7 @@ func mainerr() (retErr error) {
 		mainUsage(os.Stderr)
 	}
 	var envVars envVarsFlag
+	fUpdate := fs.Bool("u", false, "update archive file if a cmp fails")
 	fWork := fs.Bool("work", false, "print temporary work directory and do not remove when done")
 	fVerbose := fs.Bool("v", false, "run tests verbosely")
 	fs.Var(&envVars, "e", "pass through environment variable to script (can appear multiple times)")
@@ -84,6 +85,20 @@ func mainerr() (retErr error) {
 		files = []string{"-"}
 	}
 
+	// If we are only reading from stdin, -u cannot be specified. It seems a bit
+	// bizarre to invoke testscript with '-' and a regular file, but hey. In
+	// that case the -u flag will only apply to the regular file and we assume
+	// the user knows it.
+	onlyReadFromStdin := true
+	for _, f := range files {
+		if f != "-" {
+			onlyReadFromStdin = false
+		}
+	}
+	if onlyReadFromStdin && *fUpdate {
+		return fmt.Errorf("cannot use -u when reading from stdin")
+	}
+
 	dirNames := make(map[string]int)
 	for _, filename := range files {
 		// TODO make running files concurrent by default? If we do, note we'll need to do
@@ -103,7 +118,7 @@ func mainerr() (retErr error) {
 		if err := os.Mkdir(runDir, 0777); err != nil {
 			return fmt.Errorf("failed to create a run directory within %v for %v: %v", td, renderFilename(filename), err)
 		}
-		if err := run(runDir, filename, *fVerbose, envVars.vals); err != nil {
+		if err := run(runDir, filename, *fUpdate, *fVerbose, envVars.vals); err != nil {
 			return err
 		}
 	}
@@ -162,7 +177,11 @@ func renderFilename(filename string) string {
 	return filename
 }
 
-func run(runDir, filename string, verbose bool, envVars []string) error {
+// run runs the testscript archive in filename within the temporary runDir.
+// verbose causes the output to be verbose (akin to go test -v) and update
+// sets the UpdateScripts parameter passed to testscript.Run such that any
+// updates to the archive get written back to filename
+func run(runDir, filename string, update bool, verbose bool, envVars []string) error {
 	var ar *txtar.Archive
 	var err error
 
@@ -204,12 +223,15 @@ func run(runDir, filename string, verbose bool, envVars []string) error {
 		return fmt.Errorf("failed to write .gomodproxy files: %v", err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(runDir, "script.txt"), txtar.Format(&script), 0666); err != nil {
-		return fmt.Errorf("failed to write script for %v: %v", filename, err)
+	scriptFile := filepath.Join(runDir, "script.txt")
+
+	if err := ioutil.WriteFile(scriptFile, txtar.Format(&script), 0666); err != nil {
+		return fmt.Errorf("failed to write script for %v: %v", renderFilename(filename), err)
 	}
 
 	p := testscript.Params{
-		Dir: runDir,
+		Dir:           runDir,
+		UpdateScripts: update,
 	}
 
 	if _, err := exec.LookPath("go"); err == nil {
@@ -280,6 +302,29 @@ func run(runDir, filename string, verbose bool, envVars []string) error {
 
 	if err != nil {
 		return fmt.Errorf("error running %v in %v\n", renderFilename(filename), runDir)
+	}
+
+	if update && filename != "-" {
+		// Parse the (potentially) updated scriptFile as an archive, then merge
+		// with the original archive, retaining order.  Then write the archive
+		// back to the source file
+		source, err := ioutil.ReadFile(scriptFile)
+		if err != nil {
+			return fmt.Errorf("failed to read from script file %v for -update: %v", scriptFile, err)
+		}
+		updatedAr := txtar.Parse(source)
+		updatedFiles := make(map[string]txtar.File)
+		for _, f := range updatedAr.Files {
+			updatedFiles[f.Name] = f
+		}
+		for i, f := range ar.Files {
+			if newF, ok := updatedFiles[f.Name]; ok {
+				ar.Files[i] = newF
+			}
+		}
+		if err := ioutil.WriteFile(filename, txtar.Format(ar), 0666); err != nil {
+			return fmt.Errorf("failed to write script back to %v for -update: %v", renderFilename(filename), err)
+		}
 	}
 
 	return nil
