@@ -14,7 +14,7 @@ The testscript command runs github.com/rogpeppe/go-internal/testscript scripts
 in a fresh temporary work directory tree.
 
 Usage:
-    testscript [-v] [-e VAR]... [-u] files...
+    testscript [-v] [-e VAR[=value]]... [-u] files...
 
 The testscript command is designed to make it easy to create self-contained
 reproductions of command sequences.

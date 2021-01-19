@@ -273,11 +273,19 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 	if len(envVars) > 0 {
 		addSetup(func(env *testscript.Env) error {
 			for _, v := range envVars {
-				if v == "WORK" {
-					// cannot override WORK
-					continue
+				varName := v
+				if i := strings.Index(v, "="); i >= 0 {
+					varName = v[:i]
+				} else {
+					v = fmt.Sprintf("%s=%s", v, os.Getenv(v))
 				}
-				env.Vars = append(env.Vars, v+"="+os.Getenv(v))
+				switch varName {
+				case "":
+					return fmt.Errorf("invalid variable name %q", varName)
+				case "WORK":
+					return fmt.Errorf("cannot override WORK variable")
+				}
+				env.Vars = append(env.Vars, v)
 			}
 			return nil
 		})
