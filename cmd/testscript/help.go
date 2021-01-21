@@ -14,7 +14,7 @@ The testscript command runs github.com/rogpeppe/go-internal/testscript scripts
 in a fresh temporary work directory tree.
 
 Usage:
-    testscript [-v] [-e VAR[=value]]... [-u] files...
+    testscript [-v] [-e VAR[=value]]... [-u] [-work] files...
 
 The testscript command is designed to make it easy to create self-contained
 reproductions of command sequences.
@@ -41,6 +41,9 @@ second argument refers to a file inside the testscript file, the command will
 succeed and the testscript file will be updated to reflect the actual content.
 As such, this is the cmd/testcript equivalent of
 testscript.Params.UpdateScripts.
+
+The -work flag prints the temporary work directory path before running each
+script, and does not remove that directory when testscript exits.
 
 Examples
 ========
