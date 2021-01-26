@@ -99,6 +99,13 @@ func mainerr() (retErr error) {
 		return fmt.Errorf("cannot use -u when reading from stdin")
 	}
 
+	tr := testRunner{
+		update:   *fUpdate,
+		verbose:  *fVerbose,
+		env:      envVars.vals,
+		testWork: *fWork,
+	}
+
 	dirNames := make(map[string]int)
 	for _, filename := range files {
 		// TODO make running files concurrent by default? If we do, note we'll need to do
@@ -118,7 +125,7 @@ func mainerr() (retErr error) {
 		if err := os.Mkdir(runDir, 0777); err != nil {
 			return fmt.Errorf("failed to create a run directory within %v for %v: %v", td, renderFilename(filename), err)
 		}
-		if err := run(runDir, filename, *fUpdate, *fVerbose, envVars.vals); err != nil {
+		if err := tr.run(runDir, filename); err != nil {
 			return err
 		}
 	}
@@ -126,62 +133,27 @@ func mainerr() (retErr error) {
 	return nil
 }
 
-var (
-	failedRun = errors.New("failed run")
-	skipRun   = errors.New("skip")
-)
+type testRunner struct {
+	// update denotes that the source testscript archive filename should be
+	// updated in the case of any cmp failures.
+	update bool
 
-type runner struct {
+	// verbose indicates the running of the script should be noisy.
 	verbose bool
+
+	// env is the environment that should be set on top of the base
+	// testscript-defined minimal environment.
+	env []string
+
+	// testWork indicates whether or not temporary working directory trees
+	// should be left behind. Corresponds exactly to the
+	// testscript.Params.TestWork field.
+	testWork bool
 }
 
-func (r runner) Skip(is ...interface{}) {
-	panic(skipRun)
-}
-
-func (r runner) Fatal(is ...interface{}) {
-	r.Log(is...)
-	r.FailNow()
-}
-
-func (r runner) Parallel() {
-	// No-op for now; we are currently only running a single script in a
-	// testscript instance.
-}
-
-func (r runner) Log(is ...interface{}) {
-	fmt.Print(is...)
-}
-
-func (r runner) FailNow() {
-	panic(failedRun)
-}
-
-func (r runner) Run(n string, f func(t testscript.T)) {
-	// For now we we don't top/tail the run of a subtest. We are currently only
-	// running a single script in a testscript instance, which means that we
-	// will only have a single subtest.
-	f(r)
-}
-
-func (r runner) Verbose() bool {
-	return r.verbose
-}
-
-// renderFilename renders filename in error messages, taking into account
-// the filename could be the special "-" (stdin)
-func renderFilename(filename string) string {
-	if filename == "-" {
-		return "<stdin>"
-	}
-	return filename
-}
-
-// run runs the testscript archive in filename within the temporary runDir.
-// verbose causes the output to be verbose (akin to go test -v) and update
-// sets the UpdateScripts parameter passed to testscript.Run such that any
-// updates to the archive get written back to filename
-func run(runDir, filename string, update bool, verbose bool, envVars []string) error {
+// run runs the testscript archive located at the path filename, within the
+// working directory runDir. filename could be "-" in the case of stdin
+func (tr *testRunner) run(runDir, filename string) error {
 	var ar *txtar.Archive
 	var err error
 
@@ -231,7 +203,7 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 
 	p := testscript.Params{
 		Dir:           runDir,
-		UpdateScripts: update,
+		UpdateScripts: tr.update,
 	}
 
 	if _, err := exec.LookPath("go"); err == nil {
@@ -252,6 +224,13 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 		}
 	}
 
+	if tr.testWork {
+		addSetup(func(env *testscript.Env) error {
+			fmt.Fprintf(os.Stderr, "temporary work directory for %s: %s\n", renderFilename(filename), env.WorkDir)
+			return nil
+		})
+	}
+
 	if len(gomodProxy.Files) > 0 {
 		srv, err := goproxytest.NewServer(mods, "")
 		if err != nil {
@@ -270,9 +249,9 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 		})
 	}
 
-	if len(envVars) > 0 {
+	if len(tr.env) > 0 {
 		addSetup(func(env *testscript.Env) error {
-			for _, v := range envVars {
+			for _, v := range tr.env {
 				varName := v
 				if i := strings.Index(v, "="); i >= 0 {
 					varName = v[:i]
@@ -291,8 +270,8 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 		})
 	}
 
-	r := runner{
-		verbose: verbose,
+	r := runT{
+		verbose: tr.verbose,
 	}
 
 	func() {
@@ -312,7 +291,7 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 		return fmt.Errorf("error running %v in %v\n", renderFilename(filename), runDir)
 	}
 
-	if update && filename != "-" {
+	if tr.update && filename != "-" {
 		// Parse the (potentially) updated scriptFile as an archive, then merge
 		// with the original archive, retaining order.  Then write the archive
 		// back to the source file
@@ -336,4 +315,57 @@ func run(runDir, filename string, update bool, verbose bool, envVars []string) e
 	}
 
 	return nil
+
+}
+
+var (
+	failedRun = errors.New("failed run")
+	skipRun   = errors.New("skip")
+)
+
+// renderFilename renders filename in error messages, taking into account
+// the filename could be the special "-" (stdin)
+func renderFilename(filename string) string {
+	if filename == "-" {
+		return "<stdin>"
+	}
+	return filename
+}
+
+// runT implements testscript.T and is used in the call to testscript.Run
+type runT struct {
+	verbose bool
+}
+
+func (r runT) Skip(is ...interface{}) {
+	panic(skipRun)
+}
+
+func (r runT) Fatal(is ...interface{}) {
+	r.Log(is...)
+	r.FailNow()
+}
+
+func (r runT) Parallel() {
+	// No-op for now; we are currently only running a single script in a
+	// testscript instance.
+}
+
+func (r runT) Log(is ...interface{}) {
+	fmt.Print(is...)
+}
+
+func (r runT) FailNow() {
+	panic(failedRun)
+}
+
+func (r runT) Run(n string, f func(t testscript.T)) {
+	// For now we we don't top/tail the run of a subtest. We are currently only
+	// running a single script in a testscript instance, which means that we
+	// will only have a single subtest.
+	f(r)
+}
+
+func (r runT) Verbose() bool {
+	return r.verbose
 }
