@@ -5,16 +5,18 @@
 package testscript
 
 import (
+	cryptorand "crypto/rand"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
-	"sync/atomic"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
-
-var profileId int32 = 0
 
 // TestingM is implemented by *testing.M. It's defined as an interface
 // to allow testscript to co-exist with other testing frameworks
@@ -49,61 +51,146 @@ func IgnoreMissedCoverage() {
 //
 // This function returns an exit code to pass to os.Exit, after calling m.Run.
 func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
-	goCoverProfileMerge()
-	cmdName := os.Getenv("TESTSCRIPT_COMMAND")
-	if cmdName == "" {
+	// Depending on os.Args[0], this is either the top-level execution of
+	// the test binary by "go test", or the execution of one of the provided
+	// commands via "foo" or "exec foo".
+
+	cmdName := filepath.Base(os.Args[0])
+	if runtime.GOOS == "windows" {
+		cmdName = strings.TrimSuffix(cmdName, ".exe")
+	}
+	mainf := commands[cmdName]
+	if mainf == nil {
+		// Unknown command; this is just the top-level execution of the
+		// test binary by "go test".
+
+		// Set up all commands in a directory, added in $PATH.
+		tmpdir, err := ioutil.TempDir("", "testscript-main")
+		if err != nil {
+			log.Printf("could not set up temporary directory: %v", err)
+			return 2
+		}
 		defer func() {
-			if err := finalizeCoverProfile(); err != nil {
-				log.Printf("cannot merge cover profiles: %v", err)
+			if err := os.RemoveAll(tmpdir); err != nil {
+				log.Printf("cannot delete temporary directory: %v", err)
 				exitCode = 2
 			}
 		}()
+		bindir := filepath.Join(tmpdir, "bin")
+		if err := os.MkdirAll(bindir, 0777); err != nil {
+			log.Printf("could not set up PATH binary directory: %v", err)
+			return 2
+		}
+		os.Setenv("PATH", bindir+string(filepath.ListSeparator)+os.Getenv("PATH"))
+
+		flag.Parse()
+		// If we are collecting a coverage profile, set up a shared
+		// directory for all executed test binary sub-processes to write
+		// their profiles to. Before finishing, we'll merge all of those
+		// profiles into the main profile.
+		if coverProfile() != "" {
+			coverdir := filepath.Join(tmpdir, "cover")
+			if err := os.MkdirAll(coverdir, 0777); err != nil {
+				log.Printf("could not set up cover directory: %v", err)
+				return 2
+			}
+			os.Setenv("TESTSCRIPT_COVER_DIR", coverdir)
+			defer func() {
+				if err := finalizeCoverProfile(coverdir); err != nil {
+					log.Printf("cannot merge cover profiles: %v", err)
+					exitCode = 2
+				}
+			}()
+		}
+
 		// We're not in a subcommand.
 		for name := range commands {
 			name := name
+			// Set up this command in the directory we added to $PATH.
+			binfile := filepath.Join(bindir, name)
+			if runtime.GOOS == "windows" {
+				binfile += ".exe"
+			}
+			binpath, err := os.Executable()
+			if err == nil {
+				err = copyBinary(binpath, binfile)
+			}
+			if err != nil {
+				log.Printf("could not set up %s in $PATH: %v", name, err)
+				return 2
+			}
 			scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
-				path, err := os.Executable()
-				if err != nil {
-					ts.Fatalf("cannot determine path to test binary: %v", err)
-				}
-				id := atomic.AddInt32(&profileId, 1) - 1
-				oldEnvLen := len(ts.env)
-				cprof := coverFilename(id)
-				ts.env = append(ts.env,
-					"TESTSCRIPT_COMMAND="+name,
-					"TESTSCRIPT_COVERPROFILE="+cprof,
-				)
-				ts.cmdExec(neg, append([]string{path}, args...))
-				ts.env = ts.env[0:oldEnvLen]
-				if cprof == "" {
-					return
-				}
-				f, err := os.Open(cprof)
-				if err != nil {
-					if ignoreMissedCoverage {
-						return
-					}
-					ts.Fatalf("command %s (args %q) failed to generate coverage information", name, args)
-					return
-				}
-				coverChan <- f
+				ts.cmdExec(neg, append([]string{name}, args...))
 			}
 		}
 		return m.Run()
 	}
-	mainf := commands[cmdName]
-	if mainf == nil {
-		log.Printf("unknown command name %q", cmdName)
-		return 2
-	}
 	// The command being registered is being invoked, so run it, then exit.
 	os.Args[0] = cmdName
-	cprof := os.Getenv("TESTSCRIPT_COVERPROFILE")
-	if cprof == "" {
+	coverdir := os.Getenv("TESTSCRIPT_COVER_DIR")
+	if coverdir == "" {
 		// No coverage, act as normal.
 		return mainf()
 	}
+
+	// For a command "foo", write ${TESTSCRIPT_COVER_DIR}/foo-${RANDOM}.
+	// Note that we do not use ioutil.TempFile as that creates the file.
+	// In this case, we want to leave it to -test.coverprofile to create the
+	// file, as otherwise we could end up with an empty file.
+	// Later, when merging profiles, trying to merge an empty file would
+	// result in a confusing error.
+	rnd, err := nextRandom()
+	if err != nil {
+		log.Printf("could not obtain random number: %v", err)
+		return 2
+	}
+	cprof := filepath.Join(coverdir, fmt.Sprintf("%s-%x", cmdName, rnd))
 	return runCoverSubcommand(cprof, mainf)
+}
+
+func nextRandom() ([]byte, error) {
+	p := make([]byte, 6)
+	_, err := cryptorand.Read(p)
+	return p, err
+}
+
+// copyBinary makes a copy of a binary to a new location. It is used as part of
+// setting up top-level commands in $PATH.
+//
+// It does not attempt to use symlinks for two reasons:
+//
+// First, some tools like cmd/go's -toolexec will be clever enough to realise
+// when they're given a symlink, and they will use the symlink target for
+// executing the program. This breaks testscript, as we depend on os.Args[0] to
+// know what command to run.
+//
+// Second, symlinks might not be available on some environments, so we have to
+// implement a "full copy" fallback anyway.
+//
+// However, we do try to use a hard link, since that will probably work on most
+// unix-like setups. Note that "go test" also places test binaries in the
+// system's temporary directory, like we do. We don't use hard links on Windows,
+// as that can lead to "access denied" errors when removing.
+func copyBinary(from, to string) error {
+	if runtime.GOOS != "windows" {
+		if err := os.Link(from, to); err == nil {
+			return nil
+		}
+	}
+	writer, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	reader, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	_, err = io.Copy(writer, reader)
+	return err
 }
 
 // runCoverSubcommand runs the given function, then writes any generated
@@ -156,13 +243,6 @@ func runCoverSubcommand(cprof string, mainf func() int) (exitCode int) {
 		}
 	}()
 	return mainf()
-}
-
-func coverFilename(id int32) string {
-	if cprof := coverProfile(); cprof != "" {
-		return fmt.Sprintf("%s_%d", cprof, id)
-	}
-	return ""
 }
 
 func coverProfileFlag() flag.Getter {
