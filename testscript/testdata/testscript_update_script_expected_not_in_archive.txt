@@ -6,7 +6,7 @@ cp scripts/testscript.txt unchanged
 cmp scripts/testscript.txt unchanged
 
 -- scripts/testscript.txt --
->echo stdout right
+>fprintargs stdout right
 >cp file expect
 >cmp stdout expect
 >

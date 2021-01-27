@@ -26,7 +26,7 @@ func printArgs() int {
 	return 0
 }
 
-func echo() int {
+func fprintArgs() int {
 	s := strings.Join(os.Args[2:], " ")
 	switch os.Args[1] {
 	case "stdout":
@@ -60,7 +60,7 @@ func signalCatcher() int {
 func TestMain(m *testing.M) {
 	os.Exit(RunMain(m, map[string]func() int{
 		"printargs":     printArgs,
-		"echo":          echo,
+		"fprintargs":    fprintArgs,
 		"status":        exitWithStatus,
 		"signalcatcher": signalCatcher,
 	}))

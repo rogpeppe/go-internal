@@ -4,13 +4,13 @@ testscript-update scripts
 cmp scripts/testscript.txt testscript-new.txt
 
 -- scripts/testscript.txt --
->echo stderr right
+>fprintargs stderr right
 >cmp stderr expect
 >
 >-- expect --
 >wrong
 -- testscript-new.txt --
->echo stderr right
+>fprintargs stderr right
 >cmp stderr expect
 >
 >-- expect --

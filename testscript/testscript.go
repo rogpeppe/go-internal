@@ -299,6 +299,10 @@ func (ts *TestScript) setup() string {
 			"devnull=" + os.DevNull,
 			"/=" + string(os.PathSeparator),
 			":=" + string(os.PathListSeparator),
+
+			// If we are collecting coverage profiles for merging into the main one,
+			// ensure the environment variable is forwarded to sub-processes.
+			"TESTSCRIPT_COVER_DIR=" + os.Getenv("TESTSCRIPT_COVER_DIR"),
 		},
 		WorkDir: ts.workdir,
 		Values:  make(map[interface{}]interface{}),

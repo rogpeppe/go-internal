@@ -1,7 +1,7 @@
-echo stdout stdout
+fprintargs stdout stdout
 testreadfile stdout
 
-echo stderr stderr
+fprintargs stderr stderr
 testreadfile stderr
 
 testreadfile x/somefile

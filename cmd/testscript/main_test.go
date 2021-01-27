@@ -70,7 +70,8 @@ func dropgofrompath(ts *testscript.TestScript, neg bool, args []string) {
 	var newPath []string
 	for _, d := range filepath.SplitList(ts.Getenv("PATH")) {
 		getenv := func(k string) string {
-			if k == "PATH" {
+			// Note that Windows and Plan9 use lowercase "path".
+			if strings.ToUpper(k) == "PATH" {
 				return d
 			}
 			return ts.Getenv(k)
