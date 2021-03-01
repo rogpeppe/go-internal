@@ -102,58 +102,6 @@ func (e *Env) T() T {
 	return e.ts.t
 }
 
-// Params holds parameters for a call to Run.
-type Params struct {
-	// Dir holds the name of the directory holding the scripts.
-	// All files in the directory with a .txt suffix will be considered
-	// as test scripts. By default the current directory is used.
-	// Dir is interpreted relative to the current test directory.
-	Dir string
-
-	// Setup is called, if not nil, to complete any setup required
-	// for a test. The WorkDir and Vars fields will have already
-	// been initialized and all the files extracted into WorkDir,
-	// and Cd will be the same as WorkDir.
-	// The Setup function may modify Vars and Cd as it wishes.
-	Setup func(*Env) error
-
-	// Condition is called, if not nil, to determine whether a particular
-	// condition is true. It's called only for conditions not in the
-	// standard set, and may be nil.
-	Condition func(cond string) (bool, error)
-
-	// Cmds holds a map of commands available to the script.
-	// It will only be consulted for commands not part of the standard set.
-	Cmds map[string]func(ts *TestScript, neg bool, args []string)
-
-	// TestWork specifies that working directories should be
-	// left intact for later inspection.
-	TestWork bool
-
-	// WorkdirRoot specifies the directory within which scripts' work
-	// directories will be created. Setting WorkdirRoot implies TestWork=true.
-	// If empty, the work directories will be created inside
-	// $GOTMPDIR/go-test-script*, where $GOTMPDIR defaults to os.TempDir().
-	WorkdirRoot string
-
-	// IgnoreMissedCoverage specifies that if coverage information
-	// is being generated (with the -test.coverprofile flag) and a subcommand
-	// function passed to RunMain fails to generate coverage information
-	// (for example because the function invoked os.Exit), then the
-	// error will be ignored.
-	IgnoreMissedCoverage bool
-
-	// UpdateScripts specifies that if a `cmp` command fails and its second
-	// argument refers to a file inside the testscript file, the command will
-	// succeed and the testscript file will be updated to reflect the actual
-	// content (which could be stdout, stderr or a real file).
-	//
-	// The content will be quoted with txtar.Quote if needed;
-	// a manual change will be needed if it is not unquoted in the
-	// script.
-	UpdateScripts bool
-}
-
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
 // are considered to be test files.
 func Run(t *testing.T, p Params) {
@@ -191,8 +139,7 @@ func (t tshim) Verbose() bool {
 // RunT is like Run but uses an interface type instead of the concrete *testing.T
 // type to make it possible to use testscript functionality outside of go test.
 func RunT(t T, p Params) {
-	glob := filepath.Join(p.Dir, "*.txt")
-	files, err := filepath.Glob(glob)
+	glob, files, err := p.glob("*.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
