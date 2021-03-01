@@ -7,6 +7,7 @@ package testscript
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -133,7 +134,8 @@ func TestScripts(t *testing.T) {
 	// TODO set temp directory.
 	testDeferCount := 0
 	Run(t, Params{
-		Dir: "testdata",
+		UpdateScripts: os.Getenv("TESTSCRIPT_UPDATE") != "",
+		Dir:           "testdata",
 		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
 			"setSpecialVal":    setSpecialVal,
 			"ensureSpecialVal": ensureSpecialVal,
@@ -176,12 +178,19 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("reading %q; got %q want %q", args[0], got, want)
 				}
 			},
-			"testscript-update": func(ts *TestScript, neg bool, args []string) {
+			"testscript": func(ts *TestScript, neg bool, args []string) {
 				// Run testscript in testscript. Oooh! Meta!
-				if len(args) != 1 {
-					ts.Fatalf("testscript <dir>")
+				fset := flag.NewFlagSet("testscript", flag.ContinueOnError)
+				fUpdate := fset.Bool("update", false, "update scripts when cmp fails")
+				fVerbose := fset.Bool("verbose", false, "be verbose with output")
+				if err := fset.Parse(args); err != nil {
+					ts.Fatalf("failed to parse args for testscript: %v", err)
 				}
-				t := &fakeT{ts: ts}
+				if fset.NArg() != 1 {
+					ts.Fatalf("testscript [-verbose] [-update] <dir>")
+				}
+				dir := fset.Arg(0)
+				t := &fakeT{ts: ts, verbose: *fVerbose}
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
@@ -191,18 +200,19 @@ func TestScripts(t *testing.T) {
 						}
 					}()
 					RunT(t, Params{
-						Dir:           ts.MkAbs(args[0]),
-						UpdateScripts: true,
+						Dir:           ts.MkAbs(dir),
+						UpdateScripts: *fUpdate,
 					})
 				}()
+				ts.stdout = strings.Replace(t.log.String(), ts.workdir, "$WORK", -1)
 				if neg {
 					if len(t.failMsgs) == 0 {
-						ts.Fatalf("testscript-update unexpectedly succeeded")
+						ts.Fatalf("testscript unexpectedly succeeded")
 					}
 					return
 				}
 				if len(t.failMsgs) > 0 {
-					ts.Fatalf("testscript-update unexpectedly failed with errors: %q", t.failMsgs)
+					ts.Fatalf("testscript unexpectedly failed with errors: %q", t.failMsgs)
 				}
 			},
 		},
@@ -376,7 +386,9 @@ func waitFile(ts *TestScript, neg bool, args []string) {
 
 type fakeT struct {
 	ts       *TestScript
+	log      bytes.Buffer
 	failMsgs []string
+	verbose  bool
 }
 
 var errAbort = errors.New("abort test")
@@ -393,7 +405,7 @@ func (t *fakeT) Fatal(args ...interface{}) {
 func (t *fakeT) Parallel() {}
 
 func (t *fakeT) Log(args ...interface{}) {
-	t.ts.Logf("testscript: %v", fmt.Sprint(args...))
+	fmt.Fprint(&t.log, args...)
 }
 
 func (t *fakeT) FailNow() {
@@ -405,5 +417,5 @@ func (t *fakeT) Run(name string, f func(T)) {
 }
 
 func (t *fakeT) Verbose() bool {
-	return false
+	return t.verbose
 }
