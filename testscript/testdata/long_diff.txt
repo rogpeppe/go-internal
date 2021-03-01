@@ -112,56 +112,17 @@ cmpenv stdout stdout.golden
 -- stdout.golden --
 
 > cmp a b
-[diff -a +b]
--a
+--- a
++++ b
+@@ -1,3 +1,4 @@
 +b
  a
  a
  a
+@@ -46,4 +47,3 @@
  a
  a
  a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
- a
+-a
 
 FAIL: $$WORK${/}dir${/}script.txt:1: a and b differ
