@@ -1,5 +1,7 @@
 unquote scripts/exec.txt
 
+[darwin] skip 'Pending a fix for github.com/rogpeppe/go-internal/issues/130'
+
 # The module uses testscript itself.
 # Use the checked out module, based on where the test binary ran.
 go mod edit -replace=github.com/rogpeppe/go-internal=${GOINTERNAL_MODULE}
