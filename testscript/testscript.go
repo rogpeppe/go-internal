@@ -289,13 +289,23 @@ type backgroundCmd struct {
 // It returns the comment section of the txtar archive.
 func (ts *TestScript) setup() string {
 	ts.workdir = filepath.Join(ts.testTempDir, "script-"+ts.name)
-	ts.Check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
+
+	// Establish a temporary directory in workdir, but use a prefix that ensures
+	// this directory will not be walked when resolving the ./... pattern from
+	// workdir. This is important because when resolving a ./... pattern, cmd/go
+	// (which is used by go/packages) creates temporary build files and
+	// directories. This can, and does, therefore interfere with the ./...
+	// pattern when used from workdir and can lead to race conditions within
+	// cmd/go as it walks directories to match the ./... pattern.
+	tmpDir := filepath.Join(ts.workdir, ".tmp")
+
+	ts.Check(os.MkdirAll(tmpDir, 0777))
 	env := &Env{
 		Vars: []string{
 			"WORK=" + ts.workdir, // must be first for ts.abbrev
 			"PATH=" + os.Getenv("PATH"),
 			homeEnvName() + "=/no-home",
-			tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+			tempEnvName() + "=" + tmpDir,
 			"devnull=" + os.DevNull,
 			"/=" + string(os.PathSeparator),
 			":=" + string(os.PathListSeparator),
