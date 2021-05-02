@@ -215,6 +215,27 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("testscript unexpectedly failed with errors: %q", t.failMsgs)
 				}
 			},
+			"reverse": func(ts *TestScript, neg bool, args []string) {
+				if len(args) != 1 {
+					ts.Fatalf("reverse expects exactly 1 argument")
+				}
+				// This is just here to test stderr
+				if len(args[0]) == 0 {
+					if neg {
+						ts.Stdout("")
+						ts.Stderr("reverse can't be blank")
+						return
+					}
+					ts.Fatalf("reverse can't be blank")
+				}
+				// Read the argument
+				reversed := ""
+				for _, char := range args[0] {
+					reversed = string(char) + reversed
+				}
+				ts.Stdout(reversed)
+				ts.Stderr("")
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := ioutil.ReadDir(env.WorkDir)

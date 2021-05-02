@@ -779,6 +779,22 @@ func (ts *TestScript) Getenv(key string) string {
 	return ts.envMap[envvarname(key)]
 }
 
+// Stdout sets stdout
+func (ts *TestScript) Stdout(stdout string) {
+	if ts.stdout != "" {
+		ts.Logf("[stdout]\n%s", stdout)
+	}
+	ts.stdout = stdout
+}
+
+// Stderr sets stderr
+func (ts *TestScript) Stderr(stderr string) {
+	if ts.stderr != "" {
+		ts.Logf("[stderr]\n%s", stderr)
+	}
+	ts.stderr = stderr
+}
+
 // parse parses a single line as a list of space-separated arguments
 // subject to environment variable expansion (but not resplitting).
 // Single quotes around text disable splitting and expansion.

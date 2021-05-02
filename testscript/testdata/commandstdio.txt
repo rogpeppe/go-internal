@@ -1,0 +1,24 @@
+[!exec:cat] stop
+
+# Add to stdout
+exec cat hello.text
+! stderr .
+stdout 'hello world'
+
+# Reverse stdout
+reverse 'hello world'
+! stderr .
+stdout 'dlrow olleh'
+
+# Test that we didn't mess anything up
+exec cat hello.text
+! stderr .
+stdout 'hello world'
+
+# Test stderr
+! reverse ''
+! stdout .
+stderr 'reverse can''t be blank'
+
+-- hello.text --
+hello world
