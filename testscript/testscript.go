@@ -781,7 +781,7 @@ func (ts *TestScript) Getenv(key string) string {
 
 // Stdout sets stdout
 func (ts *TestScript) Stdout(stdout string) {
-	if ts.stdout != "" {
+	if stdout != "" {
 		ts.Logf("[stdout]\n%s", stdout)
 	}
 	ts.stdout = stdout
@@ -789,7 +789,7 @@ func (ts *TestScript) Stdout(stdout string) {
 
 // Stderr sets stderr
 func (ts *TestScript) Stderr(stderr string) {
-	if ts.stderr != "" {
+	if stderr != "" {
 		ts.Logf("[stderr]\n%s", stderr)
 	}
 	ts.stderr = stderr
