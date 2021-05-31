@@ -278,7 +278,7 @@ If Params.TestWork is true, it causes each test to log the name of its $WORK dir
 environment variable settings and also to leave that directory behind when it exits,
 for manual debugging of failing tests:
 
-	$ go test -run=Script -work
+	$ go test -run=Script -testwork
 	--- FAIL: TestScript (3.75s)
 	    --- FAIL: TestScript/install_rebuild_gopath (0.16s)
 	        script_test.go:223:
