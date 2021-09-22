@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js && !nacl && !plan9
 // +build !js,!nacl,!plan9
 
 package filelock_test

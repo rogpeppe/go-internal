@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"testing"
 )
 
 // TestingM is implemented by *testing.M. It's defined as an interface
@@ -228,7 +227,7 @@ func runCoverSubcommand(cprof string, mainf func() int) (exitCode int) {
 
 		// Run MainStart (recursively, but it we should be ok) with no tests
 		// so that it writes the coverage profile.
-		m := testing.MainStart(nopTestDeps{}, nil, nil, nil)
+		m := mainStart()
 		if code := m.Run(); code != 0 && exitCode == 0 {
 			exitCode = code
 		}
