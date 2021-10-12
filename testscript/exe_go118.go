@@ -17,7 +17,7 @@ func mainStart() *testing.M {
 // Note: corpusEntry is an anonymous struct type used by some method stubs.
 type corpusEntry = struct {
 	Parent     string
-	Name       string
+	Path       string
 	Data       []byte
 	Values     []interface{}
 	Generation int
