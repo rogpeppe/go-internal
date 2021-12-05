@@ -389,6 +389,7 @@ type fakeT struct {
 	log      bytes.Buffer
 	failMsgs []string
 	verbose  bool
+	failed   bool
 }
 
 var errAbort = errors.New("abort test")
@@ -398,6 +399,7 @@ func (t *fakeT) Skip(args ...interface{}) {
 }
 
 func (t *fakeT) Fatal(args ...interface{}) {
+	t.failed = true
 	t.failMsgs = append(t.failMsgs, fmt.Sprint(args...))
 	panic(errAbort)
 }
@@ -418,4 +420,8 @@ func (t *fakeT) Run(name string, f func(T)) {
 
 func (t *fakeT) Verbose() bool {
 	return t.verbose
+}
+
+func (t *fakeT) Failed() bool {
+	return t.failed
 }
