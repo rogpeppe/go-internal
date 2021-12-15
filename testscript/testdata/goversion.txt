@@ -1,0 +1,8 @@
+[!exec:sh] skip 'sh not found in $PATH'
+
+# test that the go: condition works for minimum supported versions of Go
+[go:1.16] exec sh -c 'exit 0'
+[go:1.17.1] exec sh -c 'exit 0'
+
+# test that the go:condition works for future versions of Go
+[go:2] exec sh -c 'exit 1'

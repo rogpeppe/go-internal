@@ -105,6 +105,7 @@ should only run when the condition is satisfied. The predefined conditions are:
  - [link] for whether the OS has hard link support
  - [symlink] for whether the OS has symbolic link support
  - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+ - [go:version] for whether the Go version is at least the given version
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false.

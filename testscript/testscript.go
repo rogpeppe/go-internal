@@ -26,6 +26,7 @@ import (
 	"github.com/rogpeppe/go-internal/imports"
 	"github.com/rogpeppe/go-internal/internal/os/execpath"
 	"github.com/rogpeppe/go-internal/par"
+	"github.com/rogpeppe/go-internal/semver"
 	"github.com/rogpeppe/go-internal/testenv"
 	"github.com/rogpeppe/go-internal/txtar"
 )
@@ -572,6 +573,18 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 			return err == nil
 		}).(bool)
 		return ok, nil
+	case strings.HasPrefix(cond, "go:"):
+		runtimeVersion := runtime.Version()
+		if !strings.HasPrefix(runtimeVersion, "go") {
+			// If the runtime version does not start with "go", then it is a
+			// commit hash and date at the time of the build, so we have no way
+			// to know if the runtime version is greater than or equal to the
+			// minimum version. So, conservatively assume that it is not.
+			return false, nil
+		}
+		goVersion := "v" + strings.TrimPrefix(runtimeVersion, "go")
+		minVersion := "v" + strings.TrimPrefix(cond, "go:")
+		return semver.Compare(goVersion, minVersion) >= 0, nil
 	case ts.params.Condition != nil:
 		return ts.params.Condition(cond)
 	default:
