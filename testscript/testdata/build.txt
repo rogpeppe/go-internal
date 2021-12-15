@@ -1,0 +1,9 @@
+[!exec:sh] skip 'sh not found in $PATH'
+
+# test that the build:tag condition works for set build tags
+[build:go1.16] exec echo ok
+stdout ok
+[build:go1.17] exec sh -c 'exit 0'
+
+# test that the build:tag condition works for unset build tags
+[build:go2] exec sh -c 'exit 1'

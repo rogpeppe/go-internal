@@ -105,6 +105,14 @@ should only run when the condition is satisfied. The predefined conditions are:
  - [link] for whether the OS has hard link support
  - [symlink] for whether the OS has symbolic link support
  - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+ - [build:tag] for whether the release build tag is set; user-defined build tags
+   are not currently supported. Note that the "build:" prefix
+   distinguishes this set of conditions from the conditions recognized
+   by the gotooltest package - that package has no "build:" prefix and
+   guards based on whether the go tool supports a given tag, but the
+   "build:" tag guards based on whether the binary that's imported the
+   testscript package supports the tag.
+
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false.

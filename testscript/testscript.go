@@ -12,6 +12,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -592,6 +593,14 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 			return err == nil
 		}).(bool)
 		return ok, nil
+	case strings.HasPrefix(cond, "build:"):
+		tag := cond[len("build:"):]
+		for _, releaseTag := range build.Default.ReleaseTags {
+			if releaseTag == tag {
+				return true, nil
+			}
+		}
+		return false, nil
 	case ts.params.Condition != nil:
 		return ts.params.Condition(cond)
 	default:
