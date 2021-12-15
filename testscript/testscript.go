@@ -572,32 +572,29 @@ func (ts *TestScript) applyScriptUpdates() {
 
 // condition reports whether the given condition is satisfied.
 func (ts *TestScript) condition(cond string) (bool, error) {
-	switch cond {
-	case "short":
+	switch {
+	case cond == "short":
 		return testing.Short(), nil
-	case "net":
+	case cond == "net":
 		return testenv.HasExternalNetwork(), nil
-	case "link":
+	case cond == "link":
 		return testenv.HasLink(), nil
-	case "symlink":
+	case cond == "symlink":
 		return testenv.HasSymlink(), nil
-	case runtime.GOOS, runtime.GOARCH:
-		return true, nil
+	case imports.KnownOS[cond]:
+		return cond == runtime.GOOS, nil
+	case imports.KnownArch[cond]:
+		return cond == runtime.GOARCH, nil
+	case strings.HasPrefix(cond, "exec:"):
+		prog := cond[len("exec:"):]
+		ok := execCache.Do(prog, func() interface{} {
+			_, err := execpath.Look(prog, ts.Getenv)
+			return err == nil
+		}).(bool)
+		return ok, nil
+	case ts.params.Condition != nil:
+		return ts.params.Condition(cond)
 	default:
-		if imports.KnownArch[cond] || imports.KnownOS[cond] {
-			return false, nil
-		}
-		if strings.HasPrefix(cond, "exec:") {
-			prog := cond[len("exec:"):]
-			ok := execCache.Do(prog, func() interface{} {
-				_, err := execpath.Look(prog, ts.Getenv)
-				return err == nil
-			}).(bool)
-			return ok, nil
-		}
-		if ts.params.Condition != nil {
-			return ts.params.Condition(cond)
-		}
 		ts.Fatalf("unknown condition %q", cond)
 		panic("unreachable")
 	}
