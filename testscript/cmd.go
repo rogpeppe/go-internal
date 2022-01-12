@@ -234,6 +234,8 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 	}
 }
 
+var backgroundSpecifier = regexp.MustCompile(`^&([a-zA-Z_0-9]+&)?$`)
+
 // exec runs the given command.
 func (ts *TestScript) cmdExec(neg bool, args []string) {
 	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
@@ -241,7 +243,11 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 	}
 
 	var err error
-	if len(args) > 0 && args[len(args)-1] == "&" {
+	if len(args) > 0 && backgroundSpecifier.MatchString(args[len(args)-1]) {
+		bgName := strings.TrimSuffix(strings.TrimPrefix(args[len(args)-1], "&"), "&")
+		if ts.findBackground(bgName) != nil {
+			ts.Fatalf("duplicate background process name %q", bgName)
+		}
 		var cmd *exec.Cmd
 		cmd, err = ts.execBackground(args[0], args[1:len(args)-1]...)
 		if err == nil {
@@ -250,7 +256,7 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 				ctxWait(ts.ctxt, cmd)
 				close(wait)
 			}()
-			ts.background = append(ts.background, backgroundCmd{cmd, wait, neg})
+			ts.background = append(ts.background, backgroundCmd{bgName, cmd, wait, neg})
 		}
 		ts.stdout, ts.stderr = "", ""
 	} else {
@@ -449,16 +455,69 @@ func (ts *TestScript) cmdUNIX2DOS(neg bool, args []string) {
 
 // Tait waits for background commands to exit, setting stderr and stdout to their result.
 func (ts *TestScript) cmdWait(neg bool, args []string) {
+	if len(args) > 1 {
+		ts.Fatalf("usage: wait [name]")
+	}
 	if neg {
 		ts.Fatalf("unsupported: ! wait")
 	}
 	if len(args) > 0 {
-		ts.Fatalf("usage: wait")
+		ts.waitBackgroundOne(args[0])
+	} else {
+		ts.waitBackground(true)
 	}
-	ts.waitBackground(true, neg)
 }
 
-func (ts *TestScript) waitBackground(checkStatus bool, neg bool) {
+func (ts *TestScript) waitBackgroundOne(bgName string) {
+	bg := ts.findBackground(bgName)
+	if bg == nil {
+		ts.Fatalf("unknown background process %q", bgName)
+	}
+	<-bg.wait
+	ts.stdout = bg.cmd.Stdout.(*strings.Builder).String()
+	ts.stderr = bg.cmd.Stderr.(*strings.Builder).String()
+	if ts.stdout != "" {
+		fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+	}
+	if ts.stderr != "" {
+		fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
+	}
+	// Note: ignore bg.neg, which only takes effect on the non-specific
+	// wait command.
+	if bg.cmd.ProcessState.Success() {
+		if bg.neg {
+			ts.Fatalf("unexpected command success")
+		}
+	} else {
+		if ts.ctxt.Err() != nil {
+			ts.Fatalf("test timed out while running command")
+		} else if !bg.neg {
+			ts.Fatalf("unexpected command failure")
+		}
+	}
+	// Remove this process from the list of running background processes.
+	for i := range ts.background {
+		if bg == &ts.background[i] {
+			ts.background = append(ts.background[:i], ts.background[i+1:]...)
+			break
+		}
+	}
+}
+
+func (ts *TestScript) findBackground(bgName string) *backgroundCmd {
+	if bgName == "" {
+		return nil
+	}
+	for i := range ts.background {
+		bg := &ts.background[i]
+		if bg.name == bgName {
+			return bg
+		}
+	}
+	return nil
+}
+
+func (ts *TestScript) waitBackground(checkStatus bool) {
 	var stdouts, stderrs []string
 	for _, bg := range ts.background {
 		<-bg.wait
