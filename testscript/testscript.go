@@ -174,6 +174,12 @@ type T interface {
 	Verbose() bool
 }
 
+// TFailed holds optional extra methods implemented on T.
+// It's defined as a separate type for backward compatibility reasons.
+type TFailed interface {
+	Failed() bool
+}
+
 type tshim struct {
 	*testing.T
 }
@@ -387,10 +393,16 @@ func (ts *TestScript) run() {
 		for _, bg := range ts.background {
 			interruptProcess(bg.cmd.Process)
 		}
-		for _, bg := range ts.background {
-			<-bg.wait
+		if ts.t.Verbose() || hasFailed(ts.t) {
+			// In verbose mode or on test failure, we want to see what happened in the background
+			// processes too.
+			ts.waitBackground(false, false)
+		} else {
+			for _, bg := range ts.background {
+				<-bg.wait
+			}
+			ts.background = nil
 		}
-		ts.background = nil
 
 		markTime()
 		// Flush testScript log to testing.T log.
@@ -514,6 +526,13 @@ Script:
 	if !ts.stopped {
 		fmt.Fprintf(&ts.log, "PASS\n")
 	}
+}
+
+func hasFailed(t T) bool {
+	if t, ok := t.(TFailed); ok {
+		return t.Failed()
+	}
+	return false
 }
 
 func (ts *TestScript) applyScriptUpdates() {

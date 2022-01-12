@@ -455,7 +455,10 @@ func (ts *TestScript) cmdWait(neg bool, args []string) {
 	if len(args) > 0 {
 		ts.Fatalf("usage: wait")
 	}
+	ts.waitBackground(true, neg)
+}
 
+func (ts *TestScript) waitBackground(checkStatus bool, neg bool) {
 	var stdouts, stderrs []string
 	for _, bg := range ts.background {
 		<-bg.wait
@@ -475,6 +478,9 @@ func (ts *TestScript) cmdWait(neg bool, args []string) {
 			stderrs = append(stderrs, cmdStderr)
 		}
 
+		if !checkStatus {
+			continue
+		}
 		if bg.cmd.ProcessState.Success() {
 			if bg.neg {
 				ts.Fatalf("unexpected command success")
