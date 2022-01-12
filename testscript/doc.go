@@ -152,6 +152,10 @@ The predefined commands are:
   test. At the end of the test, any remaining background processes are
   terminated using os.Interrupt (if supported) or os.Kill.
 
+  If the last token is '&word&` (where "word" is alphanumeric), the
+  command runs in the background but has a name, and can be waited
+  for specifically by passing the word to 'wait'.
+
   Standard input can be provided using the stdin command; this will be
   cleared after exec has been called.
 
@@ -197,12 +201,14 @@ The predefined commands are:
 - symlink file -> target
   Create file as a symlink to target. The -> (like in ls -l output) is required.
 
-- wait
+- wait [command]
   Wait for all 'exec' and 'go' commands started in the background (with the '&'
   token) to exit, and display success or failure status for them.
   After a call to wait, the 'stderr' and 'stdout' commands will apply to the
   concatenation of the corresponding streams of the background commands,
   in the order in which those commands were started.
+
+  If an argument is specified, it waits for just that command.
 
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)
