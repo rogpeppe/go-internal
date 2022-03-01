@@ -1,0 +1,6 @@
+[!exec:sh] skip 'sh not found in $PATH'
+
+# test that exactly one of gc and gccgo is set
+[gc] exec sh -c 'echo gc >> go-compiler'
+[gccgo] exec sh -c 'echo gccgo >> go-compiler'
+grep '\A(gc|gccgo)\n\z' go-compiler
