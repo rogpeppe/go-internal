@@ -592,6 +592,11 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 			return err == nil
 		}).(bool)
 		return ok, nil
+	case cond == "gc" || cond == "gccgo":
+		// TODO this reflects the compiler that the current
+		// binary was built with but not necessarily the compiler
+		// that will be used.
+		return cond == runtime.Compiler, nil
 	case ts.params.Condition != nil:
 		return ts.params.Condition(cond)
 	default:
