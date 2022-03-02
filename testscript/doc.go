@@ -107,6 +107,7 @@ should only run when the condition is satisfied. The predefined conditions are:
  - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
  - [gc] for whether Go was built with gc
  - [gccgo] for whether Go was built with gccgo
+ - [go1.x] for whether the Go version is 1.x or later
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false.
