@@ -12,6 +12,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -29,6 +30,8 @@ import (
 	"github.com/rogpeppe/go-internal/testenv"
 	"github.com/rogpeppe/go-internal/txtar"
 )
+
+var goVersionRegex = regexp.MustCompile(`^go([1-9][0-9]*)\.([1-9][0-9]*)$`)
 
 var execCache par.Cache
 
@@ -597,6 +600,13 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 		// binary was built with but not necessarily the compiler
 		// that will be used.
 		return cond == runtime.Compiler, nil
+	case goVersionRegex.MatchString(cond):
+		for _, v := range build.Default.ReleaseTags {
+			if cond == v {
+				return true, nil
+			}
+		}
+		return false, nil
 	case ts.params.Condition != nil:
 		return ts.params.Condition(cond)
 	default:

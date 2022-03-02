@@ -4,3 +4,8 @@
 [gc] exec sh -c 'echo gc >> go-compiler'
 [gccgo] exec sh -c 'echo gccgo >> go-compiler'
 grep '\A(gc|gccgo)\n\z' go-compiler
+
+# test that go version build tags are set
+[go1.1] exec sh -c 'echo go1.1 >> go-version'
+[go2.1] exec sh -c 'echo go2.1 >> go-version'
+grep '\Ago1\.1\n\z' go-version

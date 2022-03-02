@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go/build"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -104,21 +103,6 @@ func Setup(p *testscript.Params) error {
 		p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))
 	}
 	p.Cmds["go"] = cmdGo
-	origCondition := p.Condition
-	p.Condition = func(cond string) (bool, error) {
-		if goVersionRegex.MatchString(cond) {
-			for _, v := range build.Default.ReleaseTags {
-				if cond == v {
-					return true, nil
-				}
-			}
-			return false, nil
-		}
-		if origCondition == nil {
-			return false, fmt.Errorf("unknown condition %q", cond)
-		}
-		return origCondition(cond)
-	}
 	return nil
 }
 
