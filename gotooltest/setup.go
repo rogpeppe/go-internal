@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	goVersionRegex = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+	goVersionRegex = regexp.MustCompile(`^go([1-9][0-9]*)\.([1-9][0-9]*)$`)
 
 	goEnv struct {
 		GOROOT      string
