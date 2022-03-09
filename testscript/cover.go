@@ -6,6 +6,7 @@ package testscript
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,8 +16,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-
-	"gopkg.in/errgo.v2/fmt/errors"
 )
 
 // mergeCoverProfile merges the coverage information in f into
@@ -30,10 +29,10 @@ func mergeCoverProfile(cover *testing.Cover, path string) error {
 	defer f.Close()
 	scanner, err := newProfileScanner(f)
 	if err != nil {
-		return errors.Wrap(err)
+		return err
 	}
 	if scanner.Mode() != testing.CoverMode() {
-		return errors.Newf("unexpected coverage mode in subcommand")
+		return errors.New("unexpected coverage mode in subcommand")
 	}
 	if cover.Mode == "" {
 		cover.Mode = scanner.Mode()
@@ -83,7 +82,7 @@ func mergeCoverProfile(cover *testing.Cover, path string) error {
 	}
 	flush()
 	if scanner.Err() != nil {
-		return errors.Notef(err, nil, "error scanning profile")
+		return fmt.Errorf("error scanning profile: %v", err)
 	}
 	return nil
 }
@@ -104,7 +103,7 @@ func finalizeCoverProfile(dir string) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err)
+		return err
 	}
 	if err := os.RemoveAll(dir); err != nil {
 		// The RemoveAll seems to fail very rarely, with messages like
@@ -116,7 +115,7 @@ func finalizeCoverProfile(dir string) error {
 			}
 			return nil
 		})
-		return errors.Wrap(err)
+		return err
 	}
 
 	// We need to include our own top-level coverage profile too.
@@ -128,18 +127,18 @@ func finalizeCoverProfile(dir string) error {
 	// Finally, write the resulting merged profile.
 	f, err := os.Create(cprof)
 	if err != nil {
-		return errors.Notef(err, nil, "cannot create cover profile")
+		return fmt.Errorf("cannot create cover profile: %v", err)
 	}
 	defer f.Close()
 	w := bufio.NewWriter(f)
 	if err := writeCoverProfile1(w, cover); err != nil {
-		return errors.Wrap(err)
+		return err
 	}
 	if err := w.Flush(); err != nil {
-		return errors.Wrap(err)
+		return err
 	}
 	if err := f.Close(); err != nil {
-		return errors.Wrap(err)
+		return err
 	}
 	return nil
 }
@@ -164,7 +163,7 @@ func writeCoverProfile1(w io.Writer, cover testing.Cover) error {
 				count,
 			)
 			if err != nil {
-				return errors.Wrap(err)
+				return err
 			}
 		}
 	}
@@ -207,7 +206,7 @@ func newProfileScanner(r io.Reader) (*profileScanner, error) {
 	//	encoding/base64/base64.go:34.44,37.40 3 1
 	// where the fields are: name.go:line.column,line.column numberOfStatements count
 	if !s.scanner.Scan() {
-		return nil, errors.Newf("no lines found in profile: %v", s.Err())
+		return nil, fmt.Errorf("no lines found in profile: %v", s.Err())
 	}
 	line := s.scanner.Text()
 	mode := strings.TrimPrefix(line, "mode: ")
@@ -263,7 +262,7 @@ func (s *profileScanner) Scan() bool {
 	}
 	m := profileLineRe.FindStringSubmatch(s.scanner.Text())
 	if m == nil {
-		s.err = errors.Newf("line %q doesn't match expected format %v", m, profileLineRe)
+		s.err = fmt.Errorf("line %q doesn't match expected format %v", m, profileLineRe)
 		return false
 	}
 	s.filename = m[1]
