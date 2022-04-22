@@ -12,7 +12,7 @@ unquote withproxy.txt
 # Baseline
 testscript -v noproxy.txt
 stdout ^BANANA=$
-stdout '^GOPATH=\$WORK[/\\]gopath'$
+stdout '^GOPATH=\$WORK[/\\]\.gopath'$
 [!go1.13] stdout ^GOPROXY=$
 [go1.13] stdout ^GOPROXY=https://proxy.golang.org,direct$
 ! stderr .+
@@ -25,7 +25,7 @@ env GOPROXY=
 # no GOPROXY, no pass-through, no proxy
 testscript -v noproxy.txt
 stdout ^BANANA=$
-stdout '^GOPATH=\$WORK[/\\]gopath'$
+stdout '^GOPATH=\$WORK[/\\]\.gopath'$
 [!go1.13] stdout ^GOPROXY=$
 [go1.13] stdout ^GOPROXY=https://proxy.golang.org,direct$
 ! stderr .+
@@ -33,7 +33,7 @@ stdout '^GOPATH=\$WORK[/\\]gopath'$
 # no GOPROXY, no pass-through, with proxy
 testscript -v withproxy.txt
 stdout ^BANANA=$
-stdout '^GOPATH=\$WORK[/\\]gopath'$
+stdout '^GOPATH=\$WORK[/\\]\.gopath'$
 stdout ^GOPROXY=http://.*/mod$
 ! stderr .+
 
@@ -56,14 +56,14 @@ setfilegoproxy $WORK/proxy
 # with GOPROXY, no pass-through, no proxy
 testscript -v noproxy.txt
 stdout ^BANANA=$
-stdout '^GOPATH=\$WORK[/\\]gopath'$
+stdout '^GOPATH=\$WORK[/\\]\.gopath'$
 stdout ^GOPROXY=$GOPROXY$
 ! stderr .+
 
 # with GOPROXY, no pass-through, with proxy
 testscript -v withproxy.txt
 stdout ^BANANA=$
-stdout '^GOPATH=\$WORK[/\\]gopath'$
+stdout '^GOPATH=\$WORK[/\\]\.gopath'$
 stdout ^GOPROXY=http://.*/mod$
 ! stderr .+
 

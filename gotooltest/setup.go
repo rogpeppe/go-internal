@@ -110,7 +110,7 @@ func goEnviron(env0 []string) []string {
 	env := environ(env0)
 	workdir := env.get("WORK")
 	return append(env, []string{
-		"GOPATH=" + filepath.Join(workdir, "gopath"),
+		"GOPATH=" + filepath.Join(workdir, ".gopath"),
 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
 		"GOARCH=" + runtime.GOARCH,
 		"GOOS=" + runtime.GOOS,
