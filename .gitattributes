@@ -7,3 +7,4 @@
 # example, we want to allow a .txt file to contain a CRLF line ending
 *.go    text eol=lf
 *.txt   text eol=lf
+*.txtar text eol=lf

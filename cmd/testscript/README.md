@@ -37,7 +37,7 @@ script, and does not remove that directory when testscript exits.
 Examples
 ========
 
-The following example, fruit.txt, shows a simple reproduction that includes
+The following example, fruit.txtar, shows a simple reproduction that includes
 .gomodproxy supporting files:
 
     go get -m fruit.com
@@ -58,7 +58,7 @@ The following example, fruit.txt, shows a simple reproduction that includes
 
     const Name = "Apple"
 
-Running testscript -v fruit.txt we get:
+Running testscript -v fruit.txtar we get:
 
     ...
     > go get -m fruit.com
@@ -76,7 +76,7 @@ Running testscript -v fruit.txt we get:
     PASS
 
 
-The following example, goimports.txt, shows a simple reproduction involving
+The following example, goimports.txtar, shows a simple reproduction involving
 goimports:
 
     go install golang.org/x/tools/cmd/goimports
@@ -95,7 +95,7 @@ goimports:
 
     const Pi = math.Pi
 
-Running testscript -v goimports.txt we get:
+Running testscript -v goimports.txtar we get:
 
     ...
     > go install golang.org/x/tools/cmd/goimports

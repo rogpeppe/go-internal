@@ -7,9 +7,9 @@ Package goproxytest serves Go modules from a proxy server designed to run on
 localhost during tests, both to make tests avoid requiring specific network
 servers and also to make them significantly faster.
 
-Each module archive is either a file named path_vers.txt or a directory named
-path_vers, where slashes in path have been replaced with underscores. The
-archive or directory must contain two files ".info" and ".mod", to be served as
+Each module archive is either a file named path_vers.txtar or path_vers.txt, or
+a directory named path_vers, where slashes in path have been replaced with underscores.
+The archive or directory must contain two files ".info" and ".mod", to be served as
 the info and mod files in the proxy protocol (see
 https://research.swtch.com/vgo-module).  The remaining files are served as the
 content of the module zip file.  The path@vers prefix required of files in the
@@ -96,10 +96,15 @@ func (srv *Server) readModList() error {
 	}
 	for _, info := range infos {
 		name := info.Name()
-		if !strings.HasSuffix(name, ".txt") && !info.IsDir() {
+		switch {
+		case strings.HasSuffix(name, ".txt"):
+			name = strings.TrimSuffix(name, ".txt")
+		case strings.HasSuffix(name, ".txtar"):
+			name = strings.TrimSuffix(name, ".txtar")
+		case info.IsDir():
+		default:
 			continue
 		}
-		name = strings.TrimSuffix(name, ".txt")
 		i := strings.LastIndex(name, "_v")
 		if i < 0 {
 			continue
@@ -281,13 +286,17 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	}
 
 	prefix := strings.Replace(enc, "/", "_", -1)
-	name := filepath.Join(srv.dir, prefix+"_"+encVers+".txt")
+	name := filepath.Join(srv.dir, prefix+"_"+encVers)
+	txtName := name + ".txt"
+	txtarName := name + ".txtar"
 	a := srv.archiveCache.Do(name, func() interface{} {
-		a, err := txtar.ParseFile(name)
+		a, err := txtar.ParseFile(txtarName)
 		if os.IsNotExist(err) {
-			// we fallback to trying a directory
-			name = strings.TrimSuffix(name, ".txt")
-
+			// fall back to trying with the .txt extension
+			a, err = txtar.ParseFile(txtName)
+		}
+		if os.IsNotExist(err) {
+			// fall back to trying a directory
 			a = new(txtar.Archive)
 
 			err = filepath.Walk(name, func(path string, info os.FileInfo, err error) error {
