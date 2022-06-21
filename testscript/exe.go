@@ -202,11 +202,14 @@ func runCoverSubcommand(cprof string, mainf func() int) (exitCode int) {
 	flag.CommandLine.Init(flag.CommandLine.Name(), flag.PanicOnError)
 	defer func() {
 		panicErr := recover()
-		if _, ok := panicErr.(error); ok {
+		if err, ok := panicErr.(error); ok {
 			// The flag package will already have printed this error, assuming,
 			// that is, that the error was created in the flag package.
 			// TODO check the stack to be sure it was actually raised by the flag package.
 			exitCode = 2
+			if err == flag.ErrHelp {
+				exitCode = 0
+			}
 			panicErr = nil
 		}
 		// Set os.Args so that flag.Parse will tell testing the correct
