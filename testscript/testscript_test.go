@@ -312,7 +312,7 @@ func TestBadDir(t *testing.T) {
 	if got := len(ft.failMsgs); got != wantCount {
 		t.Fatalf("expected %v fail message; got %v", wantCount, got)
 	}
-	wantMsg := regexp.MustCompile(`no scripts found matching glob: thiswillnevermatch[/\\]\*\.txt`)
+	wantMsg := regexp.MustCompile(`no txtar nor txt scripts found in dir thiswillnevermatch`)
 	if got := ft.failMsgs[0]; !wantMsg.MatchString(got) {
 		t.Fatalf("expected msg to match `%v`; got:\n%v", wantMsg, got)
 	}

@@ -196,7 +196,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 		return fmt.Errorf("failed to write .gomodproxy files: %v", err)
 	}
 
-	scriptFile := filepath.Join(runDir, "script.txt")
+	scriptFile := filepath.Join(runDir, "script.txtar")
 
 	if err := ioutil.WriteFile(scriptFile, txtar.Format(&script), 0666); err != nil {
 		return fmt.Errorf("failed to write script for %v: %v", renderFilename(filename), err)

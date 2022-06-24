@@ -14,10 +14,10 @@ To invoke the tests, call testscript.Run. For example:
 		})
 	}
 
-A testscript directory holds test scripts *.txt run during 'go test'.
+A testscript directory holds test scripts with extension txtar or txt run during 'go test'.
 Each script defines a subtest; the exact set of allowable commands in a
 script are defined by the parameters passed to the Run function.
-To run a specific script foo.txt
+To run a specific script foo.txtar or foo.txt, run
 
 	go test cmd/go -run=TestName/^foo$
 
@@ -68,7 +68,7 @@ systems, ".exe" on Windows.
 The script's supporting files are unpacked relative to $WORK
 and then the script begins execution in that
 directory as well. Thus the example above runs in $WORK
-with $WORK/hello.txt containing the listed contents.
+with $WORK/hello.txtar containing the listed contents.
 
 The lines at the top of the script are a sequence of commands to be
 executed by a small script engine in the testscript package (not the system

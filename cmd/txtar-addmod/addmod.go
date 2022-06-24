@@ -202,7 +202,7 @@ func main1() int {
 				break
 			}
 		} else {
-			if err := ioutil.WriteFile(filepath.Join(targetDir, modDir+".txt"), data, 0666); err != nil {
+			if err := ioutil.WriteFile(filepath.Join(targetDir, modDir+".txtar"), data, 0666); err != nil {
 				log.Printf("%s: %v", arg, err)
 				exitCode = 1
 				continue

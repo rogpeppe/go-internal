@@ -108,8 +108,8 @@ func (e *Env) T() T {
 // Params holds parameters for a call to Run.
 type Params struct {
 	// Dir holds the name of the directory holding the scripts.
-	// All files in the directory with a .txt suffix will be considered
-	// as test scripts. By default the current directory is used.
+	// All files in the directory with a .txtar or .txt suffix will be
+	// considered as test scripts. By default the current directory is used.
 	// Dir is interpreted relative to the current test directory.
 	Dir string
 
@@ -158,7 +158,7 @@ type Params struct {
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
-// are considered to be test files.
+// or ".txtar" extension are considered to be test files.
 func Run(t *testing.T, p Params) {
 	RunT(tshim{t}, p)
 }
@@ -200,13 +200,22 @@ func (t tshim) Verbose() bool {
 // RunT is like Run but uses an interface type instead of the concrete *testing.T
 // type to make it possible to use testscript functionality outside of go test.
 func RunT(t T, p Params) {
-	glob := filepath.Join(p.Dir, "*.txt")
-	files, err := filepath.Glob(glob)
-	if err != nil {
+	entries, err := os.ReadDir(p.Dir)
+	if os.IsNotExist(err) {
+		// Continue so we give a helpful error on len(files)==0 below.
+	} else if err != nil {
 		t.Fatal(err)
 	}
+	var files []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasSuffix(name, ".txtar") || strings.HasSuffix(name, ".txt") {
+			files = append(files, filepath.Join(p.Dir, name))
+		}
+	}
+
 	if len(files) == 0 {
-		t.Fatal(fmt.Sprintf("no scripts found matching glob: %v", glob))
+		t.Fatal(fmt.Sprintf("no txtar nor txt scripts found in dir %s", p.Dir))
 	}
 	testTempDir := p.WorkdirRoot
 	if testTempDir == "" {
@@ -814,7 +823,7 @@ func (ts *TestScript) Getenv(key string) string {
 // parse parses a single line as a list of space-separated arguments
 // subject to environment variable expansion (but not resplitting).
 // Single quotes around text disable splitting and expansion.
-// To embed a single quote, double it: 'Don''t communicate by sharing memory.'
+// To embed a single quote, double it: 'Don”t communicate by sharing memory.'
 func (ts *TestScript) parse(line string) []string {
 	ts.line = line
 

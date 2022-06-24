@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	txtar-c /path/to/dir >saved.txt
+//	txtar-c /path/to/dir >saved.txtar
 //
 // See https://godoc.org/github.com/rogpeppe/go-internal/txtar for details of the format
 // and how to parse a txtar file.
@@ -30,7 +30,7 @@ import (
 var flag = stdflag.NewFlagSet(os.Args[0], stdflag.ContinueOnError)
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: txtar-c dir >saved.txt\n")
+	fmt.Fprintf(os.Stderr, "usage: txtar-c dir >saved.txtar\n")
 	flag.PrintDefaults()
 }
 
