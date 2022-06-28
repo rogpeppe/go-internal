@@ -24,7 +24,6 @@ import (
 // Keep list and the implementations below sorted by name.
 //
 // NOTE: If you make changes here, update doc.go.
-//
 var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"cd":       (*TestScript).cmdCd,
 	"chmod":    (*TestScript).cmdChmod,

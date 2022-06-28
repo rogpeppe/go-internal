@@ -182,12 +182,13 @@ func TestScripts(t *testing.T) {
 				// Run testscript in testscript. Oooh! Meta!
 				fset := flag.NewFlagSet("testscript", flag.ContinueOnError)
 				fUpdate := fset.Bool("update", false, "update scripts when cmp fails")
+				fExplicitExec := fset.Bool("explicit-exec", false, "require explicit use of exec for commands")
 				fVerbose := fset.Bool("verbose", false, "be verbose with output")
 				if err := fset.Parse(args); err != nil {
 					ts.Fatalf("failed to parse args for testscript: %v", err)
 				}
 				if fset.NArg() != 1 {
-					ts.Fatalf("testscript [-verbose] [-update] <dir>")
+					ts.Fatalf("testscript [-verbose] [-update] [-explicit-exec] <dir>")
 				}
 				dir := fset.Arg(0)
 				t := &fakeT{ts: ts, verbose: *fVerbose}
@@ -200,8 +201,13 @@ func TestScripts(t *testing.T) {
 						}
 					}()
 					RunT(t, Params{
-						Dir:           ts.MkAbs(dir),
-						UpdateScripts: *fUpdate,
+						Dir:                 ts.MkAbs(dir),
+						UpdateScripts:       *fUpdate,
+						RequireExplicitExec: *fExplicitExec,
+						Cmds: map[string]func(ts *TestScript, neg bool, args []string){
+							"some-param-cmd": func(ts *TestScript, neg bool, args []string) {
+							},
+						},
 					})
 				}()
 				ts.stdout = strings.Replace(t.log.String(), ts.workdir, "$WORK", -1)

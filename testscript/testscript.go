@@ -155,6 +155,12 @@ type Params struct {
 	// a manual change will be needed if it is not unquoted in the
 	// script.
 	UpdateScripts bool
+
+	// RequireExplicitExec requires that commands passed to RunMain must be used
+	// in test scripts via `exec cmd` and not simply `cmd`. This can help keep
+	// consistency across test scripts as well as keep separate process
+	// executions explicit.
+	RequireExplicitExec bool
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"

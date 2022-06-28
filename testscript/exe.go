@@ -42,11 +42,13 @@ func IgnoreMissedCoverage() {
 // code to pass to os.Exit. It's OK for a command function to
 // exit itself, but this may result in loss of coverage information.
 //
-// When Run is called, these commands will be available as
-// testscript commands; note that these commands behave like
-// commands run with the "exec" command: they set stdout
-// and stderr, and can be run in the background by passing "&"
-// as a final argument.
+// When Run is called, these commands are installed as regular commands in the shell
+// path, so can be invoked with "exec" or via any other command (for example a shell script).
+//
+// For backwards compatibility, the commands declared in the map can be run
+// without "exec" - that is, "foo" will behave like "exec foo".
+// This can be disabled with Params.RequireExplicitExec to keep consistency
+// across test scripts, and to keep separate process executions explicit.
 //
 // This function returns an exit code to pass to os.Exit, after calling m.Run.
 func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
@@ -119,6 +121,9 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 				return 2
 			}
 			scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
+				if ts.params.RequireExplicitExec {
+					ts.Fatalf("use 'exec %s' rather than '%s' (because RequireExplicitExec is enabled)", args[0], args[0])
+				}
 				ts.cmdExec(neg, append([]string{name}, args...))
 			}
 		}
