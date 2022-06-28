@@ -58,6 +58,22 @@ func signalCatcher() int {
 	return 0
 }
 
+func terminalPrompt() int {
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	tty.WriteString("The magic words are: ")
+	var words string
+	fmt.Fscanln(tty, &words)
+	if words != "SQUEAMISHOSSIFRAGE" {
+		fmt.Println(words)
+		return 42
+	}
+	return 0
+}
+
 func TestMain(m *testing.M) {
 	timeSince = func(t time.Time) time.Duration {
 		return 0
@@ -65,10 +81,11 @@ func TestMain(m *testing.M) {
 
 	showVerboseEnv = false
 	os.Exit(RunMain(m, map[string]func() int{
-		"printargs":     printArgs,
-		"fprintargs":    fprintArgs,
-		"status":        exitWithStatus,
-		"signalcatcher": signalCatcher,
+		"printargs":      printArgs,
+		"fprintargs":     fprintArgs,
+		"status":         exitWithStatus,
+		"signalcatcher":  signalCatcher,
+		"terminalprompt": terminalPrompt,
 	}))
 }
 
