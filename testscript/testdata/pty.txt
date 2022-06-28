@@ -1,0 +1,10 @@
+[!linux] [!darwin] skip
+
+ttyin secretwords.txt
+terminalprompt
+ttyout 'magic words'
+! stderr .
+! stdout .
+
+-- secretwords.txt --
+SQUEAMISHOSSIFRAGE

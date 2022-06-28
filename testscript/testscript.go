@@ -34,6 +34,7 @@ import (
 	"github.com/rogpeppe/go-internal/internal/os/execpath"
 	"github.com/rogpeppe/go-internal/par"
 	"github.com/rogpeppe/go-internal/testenv"
+	"github.com/rogpeppe/go-internal/testscript/internal/pty"
 	"github.com/rogpeppe/go-internal/txtar"
 )
 
@@ -98,6 +99,13 @@ func (e *Env) Getenv(key string) string {
 		}
 	}
 	return ""
+}
+
+func envvarname(k string) string {
+	if runtime.GOOS == "windows" {
+		return strings.ToLower(k)
+	}
+	return k
 }
 
 // Setenv sets the value of the environment variable named by the key. It
@@ -357,6 +365,9 @@ type TestScript struct {
 	stdin         string                      // standard input to next 'go' command; set by 'stdin' command.
 	stdout        string                      // standard output from last 'go' command; for 'stdout' command
 	stderr        string                      // standard error from last 'go' command; for 'stderr' command
+	ttyin         string                      // terminal input; set by 'ttyin' command
+	stdinPty      bool                        // connect pty to standard input; set by 'ttyin -stdin' command
+	ttyout        string                      // terminal output; for 'ttyout' command
 	stopped       bool                        // test wants to stop early
 	start         time.Time                   // time phase started
 	background    []backgroundCmd             // backgrounded 'exec' and 'go' commands
@@ -940,16 +951,49 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
+	if ts.ttyin != "" {
+		ctrl, tty, err := pty.Open()
+		if err != nil {
+			return "", "", err
+		}
+		doneR, doneW := make(chan struct{}), make(chan struct{})
+		var ptyBuf strings.Builder
+		go func() {
+			io.Copy(ctrl, strings.NewReader(ts.ttyin))
+			ctrl.Write([]byte{4 /* EOT */})
+			close(doneW)
+		}()
+		go func() {
+			io.Copy(&ptyBuf, ctrl)
+			close(doneR)
+		}()
+		defer func() {
+			tty.Close()
+			ctrl.Close()
+			<-doneR
+			<-doneW
+			ts.ttyin = ""
+			ts.ttyout = ptyBuf.String()
+		}()
+		pty.SetCtty(cmd, tty)
+		if ts.stdinPty {
+			cmd.Stdin = tty
+		}
+	}
 	if err = cmd.Start(); err == nil {
 		err = waitOrStop(ts.ctxt, cmd, ts.gracePeriod)
 	}
 	ts.stdin = ""
+	ts.stdinPty = false
 	return stdoutBuf.String(), stderrBuf.String(), err
 }
 
 // execBackground starts the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env.
 func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+	if ts.ttyin != "" {
+		return nil, errors.New("ttyin is not supported by background commands")
+	}
 	cmd, err := ts.buildExecCmd(command, args...)
 	if err != nil {
 		return nil, err
@@ -1126,6 +1170,8 @@ func (ts *TestScript) ReadFile(file string) string {
 		return ts.stdout
 	case "stderr":
 		return ts.stderr
+	case "ttyout":
+		return ts.ttyout
 	default:
 		file = ts.MkAbs(file)
 		data, err := ioutil.ReadFile(file)
