@@ -601,6 +601,8 @@ func (ts *TestScript) condition(cond string) (bool, error) {
 		return testenv.HasSymlink(), nil
 	case imports.KnownOS[cond]:
 		return cond == runtime.GOOS, nil
+	case cond == "unix":
+		return imports.UnixOS[runtime.GOOS], nil
 	case imports.KnownArch[cond]:
 		return cond == runtime.GOARCH, nil
 	case strings.HasPrefix(cond, "exec:"):
