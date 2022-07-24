@@ -195,17 +195,28 @@ func MatchFile(name string, tags map[string]bool) bool {
 	return true
 }
 
-var KnownOS = make(map[string]bool)
-var KnownArch = make(map[string]bool)
+var (
+	KnownOS   = make(map[string]bool)
+	UnixOS    = make(map[string]bool)
+	KnownArch = make(map[string]bool)
+)
 
 func init() {
 	for _, v := range strings.Fields(goosList) {
 		KnownOS[v] = true
+	}
+	for _, v := range strings.Fields(unixList) {
+		UnixOS[v] = true
 	}
 	for _, v := range strings.Fields(goarchList) {
 		KnownArch[v] = true
 	}
 }
 
-const goosList = "aix android darwin dragonfly freebsd hurd illumos ios js linux nacl netbsd openbsd plan9 solaris windows zos "
-const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be loong64 mips mipsle mips64 mips64le mips64p32 mips64p32le ppc ppc64 ppc64le riscv riscv64 s390 s390x sparc sparc64 wasm "
+// These values come from Go's src/go/build/syslist.go and should be kept in
+// sync with that file.
+const (
+	goosList   = "aix android darwin dragonfly freebsd hurd illumos ios js linux nacl netbsd openbsd plan9 solaris windows zos "
+	unixList   = "aix android darwin dragonfly freebsd hurd illumos ios linux netbsd openbsd solaris "
+	goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be loong64 mips mipsle mips64 mips64le mips64p32 mips64p32le ppc ppc64 ppc64le riscv riscv64 s390 s390x sparc sparc64 wasm "
+)
