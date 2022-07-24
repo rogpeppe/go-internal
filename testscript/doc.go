@@ -108,6 +108,12 @@ should only run when the condition is satisfied. The predefined conditions are:
  - [gc] for whether Go was built with gc
  - [gccgo] for whether Go was built with gccgo
  - [go1.x] for whether the Go version is 1.x or later
+ - [unix] for whether the OS is Unix-like (that is, would match the 'unix' build
+   constraint)
+
+Any known values of GOOS and GOARCH can also be used as conditions. They will be
+satisfied if the target OS or architecture match the specified value. For example,
+the condition [darwin] is true if GOOS=darwin, and [amd64] is true if GOARCH=amd64.
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false.
