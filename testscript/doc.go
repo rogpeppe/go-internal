@@ -100,16 +100,16 @@ commands support this prefix. They are indicated below by [!] in the synopsis.
 The command prefix [cond] indicates that the command on the rest of the line
 should only run when the condition is satisfied. The predefined conditions are:
 
- - [short] for testing.Short()
- - [net] for whether the external network can be used
- - [link] for whether the OS has hard link support
- - [symlink] for whether the OS has symbolic link support
- - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
- - [gc] for whether Go was built with gc
- - [gccgo] for whether Go was built with gccgo
- - [go1.x] for whether the Go version is 1.x or later
- - [unix] for whether the OS is Unix-like (that is, would match the 'unix' build
-   constraint)
+  - [short] for testing.Short()
+  - [net] for whether the external network can be used
+  - [link] for whether the OS has hard link support
+  - [symlink] for whether the OS has symbolic link support
+  - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+  - [gc] for whether Go was built with gc
+  - [gccgo] for whether Go was built with gccgo
+  - [go1.x] for whether the Go version is 1.x or later
+  - [unix] for whether the OS is Unix-like (that is, would match the 'unix' build
+    constraint)
 
 Any known values of GOOS and GOARCH can also be used as conditions. They will be
 satisfied if the target OS or architecture match the specified value. For example,
@@ -122,102 +122,107 @@ Additional conditions can be added by passing a function to Params.Condition.
 
 The predefined commands are:
 
-- cd dir
-  Change to the given directory for future commands.
+  - cd dir
+    Change to the given directory for future commands.
 
-- chmod perm path...
-  Change the permissions of the files or directories named by the path arguments
-  to the given octal mode (000 to 777).
+  - chmod perm path...
+    Change the permissions of the files or directories named by the path arguments
+    to the given octal mode (000 to 777).
 
-- cmp file1 file2
-  Check that the named files have the same content.
-  By convention, file1 is the actual data and file2 the expected data.
-  File1 can be "stdout" or "stderr" to use the standard output or standard error
-  from the most recent exec or wait command.
-  (If the files have differing content, the failure prints a diff.)
+  - [!] cmp file1 file2
+    Check that the named files have (or do not have) the same content.
+    By convention, file1 is the actual data and file2 the expected data.
+    File1 can be "stdout" or "stderr" to use the standard output or standard error
+    from the most recent exec or wait command.
+    (If the files have differing content and the command is not negated,
+    the failure prints a diff.)
 
-- cmpenv file1 file2
-  Like cmp, but environment variables in file2 are substituted before the
-  comparison. For example, $GOOS is replaced by the target GOOS.
+  - [!] cmpenv file1 file2
+    Like cmp, but environment variables in file2 are substituted before the
+    comparison. For example, $GOOS is replaced by the target GOOS.
 
-- cp src... dst
-  Copy the listed files to the target file or existing directory.
-  src can include "stdout" or "stderr" to use the standard output or standard error
-  from the most recent exec or go command.
+  - cp src... dst
+    Copy the listed files to the target file or existing directory.
+    src can include "stdout" or "stderr" to use the standard output or standard error
+    from the most recent exec or go command.
 
-- env [key=value...]
-  With no arguments, print the environment (useful for debugging).
-  Otherwise add the listed key=value pairs to the environment.
+  - env [key=value...]
+    With no arguments, print the environment (useful for debugging).
+    Otherwise add the listed key=value pairs to the environment.
 
-- [!] exec program [args...] [&]
-  Run the given executable program with the arguments.
-  It must (or must not) succeed.
-  Note that 'exec' does not terminate the script (unlike in Unix shells).
+  - [!] exec program [args...] [&]
+    Run the given executable program with the arguments.
+    It must (or must not) succeed.
+    Note that 'exec' does not terminate the script (unlike in Unix shells).
 
-  If the last token is '&', the program executes in the background. The standard
-  output and standard error of the previous command is cleared, but the output
-  of the background process is buffered — and checking of its exit status is
-  delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
-  test. At the end of the test, any remaining background processes are
-  terminated using os.Interrupt (if supported) or os.Kill.
+    If the last token is '&', the program executes in the background. The standard
+    output and standard error of the previous command is cleared, but the output
+    of the background process is buffered — and checking of its exit status is
+    delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
+    test. At the end of the test, any remaining background processes are
+    terminated using os.Interrupt (if supported) or os.Kill.
 
-  If the last token is '&word&` (where "word" is alphanumeric), the
-  command runs in the background but has a name, and can be waited
-  for specifically by passing the word to 'wait'.
+    If the last token is '&word&` (where "word" is alphanumeric), the
+    command runs in the background but has a name, and can be waited
+    for specifically by passing the word to 'wait'.
 
-  Standard input can be provided using the stdin command; this will be
-  cleared after exec has been called.
+    Standard input can be provided using the stdin command; this will be
+    cleared after exec has been called.
 
-- [!] exists [-readonly] file...
-  Each of the listed files or directories must (or must not) exist.
-  If -readonly is given, the files or directories must be unwritable.
+  - [!] exists [-readonly] file...
+    Each of the listed files or directories must (or must not) exist.
+    If -readonly is given, the files or directories must be unwritable.
 
-- [!] grep [-count=N] pattern file
-  The file's content must (or must not) match the regular expression pattern.
-  For positive matches, -count=N specifies an exact number of matches to require.
+  - [!] grep [-count=N] pattern file
+    The file's content must (or must not) match the regular expression pattern.
+    For positive matches, -count=N specifies an exact number of matches to require.
 
-- mkdir path...
-  Create the listed directories, if they do not already exists.
+  - mkdir path...
+    Create the listed directories, if they do not already exists.
 
-- unquote file...
-  Rewrite each file by replacing any leading ">" characters from
-  each line. This enables a file to contain substrings that look like
-  txtar file markers.
-  See also https://godoc.org/github.com/rogpeppe/go-internal/txtar#Unquote
+  - mv path1 path2
+    Rename path1 to path2. OS-specific restrictions may apply when path1 and path2
+    are in different directories.
 
-- rm file...
-  Remove the listed files or directories.
+  - rm file...
+    Remove the listed files or directories.
 
-- skip [message]
-  Mark the test skipped, including the message if given.
+  - skip [message]
+    Mark the test skipped, including the message if given.
 
-- stdin file
-  Set the standard input for the next exec command to the contents of the given file.
-  File can be "stdout" or "stderr" to use the standard output or standard error
-  from the most recent exec or wait command.
+  - [!] stderr [-count=N] pattern
+    Apply the grep command (see above) to the standard error
+    from the most recent exec or wait command.
 
-- [!] stderr [-count=N] pattern
-  Apply the grep command (see above) to the standard error
-  from the most recent exec or wait command.
+  - stdin file
+    Set the standard input for the next exec command to the contents of the given file.
+    File can be "stdout" or "stderr" to use the standard output or standard error
+    from the most recent exec or wait command.
 
-- [!] stdout [-count=N] pattern
-  Apply the grep command (see above) to the standard output
-  from the most recent exec or wait command.
+  - [!] stdout [-count=N] pattern
+    Apply the grep command (see above) to the standard output
+    from the most recent exec or wait command.
 
-- stop [message]
-  Stop the test early (marking it as passing), including the message if given.
+  - stop [message]
+    Stop the test early (marking it as passing), including the message if given.
 
-- symlink file -> target
-  Create file as a symlink to target. The -> (like in ls -l output) is required.
+  - symlink file -> target
+    Create file as a symlink to target. The -> (like in ls -l output) is required.
 
-- wait [command]
-  Wait for all 'exec' and 'go' commands started in the background (with the '&'
-  token) to exit, and display success or failure status for them.
-  After a call to wait, the 'stderr' and 'stdout' commands will apply to the
-  concatenation of the corresponding streams of the background commands,
-  in the order in which those commands were started.
+  - unquote file...
+    Rewrite each file by replacing any leading ">" characters from
+    each line. This enables a file to contain substrings that look like
+    txtar file markers.
+    See also https://godoc.org/github.com/rogpeppe/go-internal/txtar#Unquote
 
-  If an argument is specified, it waits for just that command.
+  - wait [command]
+    Wait for all 'exec' and 'go' commands started in the background (with the '&'
+    token) to exit, and display success or failure status for them.
+    After a call to wait, the 'stderr' and 'stdout' commands will apply to the
+    concatenation of the corresponding streams of the background commands,
+    in the order in which those commands were started.
+
+    If an argument is specified, it waits for just that command.
 
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)

@@ -9,8 +9,8 @@ unquote scripts-explicit/testscript.txt
 testscript scripts-implicit
 testscript scripts-explicit
 
-! testscript -verbose -explicit-exec scripts-implicit
-testscript -verbose -explicit-exec scripts-explicit
+! testscript -explicit-exec scripts-implicit
+testscript -explicit-exec scripts-explicit
 
 -- scripts-implicit/testscript.txt --
 >fprintargs stdout right

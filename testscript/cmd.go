@@ -35,15 +35,16 @@ var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"exists":   (*TestScript).cmdExists,
 	"grep":     (*TestScript).cmdGrep,
 	"mkdir":    (*TestScript).cmdMkdir,
+	"mv":       (*TestScript).cmdMv,
 	"rm":       (*TestScript).cmdRm,
-	"unquote":  (*TestScript).cmdUnquote,
 	"skip":     (*TestScript).cmdSkip,
-	"stdin":    (*TestScript).cmdStdin,
 	"stderr":   (*TestScript).cmdStderr,
+	"stdin":    (*TestScript).cmdStdin,
 	"stdout":   (*TestScript).cmdStdout,
 	"stop":     (*TestScript).cmdStop,
 	"symlink":  (*TestScript).cmdSymlink,
 	"unix2dos": (*TestScript).cmdUNIX2DOS,
+	"unquote":  (*TestScript).cmdUnquote,
 	"wait":     (*TestScript).cmdWait,
 }
 
@@ -95,29 +96,22 @@ func (ts *TestScript) cmdChmod(neg bool, args []string) {
 
 // cmp compares two files.
 func (ts *TestScript) cmdCmp(neg bool, args []string) {
-	if neg {
-		// It would be strange to say "this file can have any content except this precise byte sequence".
-		ts.Fatalf("unsupported: ! cmp")
-	}
 	if len(args) != 2 {
 		ts.Fatalf("usage: cmp file1 file2")
 	}
 
-	ts.doCmdCmp(args, false)
+	ts.doCmdCmp(neg, args, false)
 }
 
 // cmpenv compares two files with environment variable substitution.
 func (ts *TestScript) cmdCmpenv(neg bool, args []string) {
-	if neg {
-		ts.Fatalf("unsupported: ! cmpenv")
-	}
 	if len(args) != 2 {
 		ts.Fatalf("usage: cmpenv file1 file2")
 	}
-	ts.doCmdCmp(args, true)
+	ts.doCmdCmp(neg, args, true)
 }
 
-func (ts *TestScript) doCmdCmp(args []string, env bool) {
+func (ts *TestScript) doCmdCmp(neg bool, args []string, env bool) {
 	name1, name2 := args[0], args[1]
 	text1 := ts.ReadFile(name1)
 
@@ -128,8 +122,15 @@ func (ts *TestScript) doCmdCmp(args []string, env bool) {
 	if env {
 		text2 = ts.expand(text2)
 	}
-	if text1 == text2 {
-		return
+	eq := text1 == text2
+	if neg {
+		if eq {
+			ts.Fatalf("%s and %s do not differ", name1, name2)
+		}
+		return // they differ, as expected
+	}
+	if eq {
+		return // they are equal, as expected
 	}
 	if ts.params.UpdateScripts && !env {
 		if scriptFile, ok := ts.scriptFiles[absName2]; ok {
@@ -322,6 +323,16 @@ func (ts *TestScript) cmdMkdir(neg bool, args []string) {
 	for _, arg := range args {
 		ts.Check(os.MkdirAll(ts.MkAbs(arg), 0777))
 	}
+}
+
+func (ts *TestScript) cmdMv(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! mv")
+	}
+	if len(args) != 2 {
+		ts.Fatalf("usage: mv old new")
+	}
+	ts.Check(os.Rename(ts.MkAbs(args[0]), ts.MkAbs(args[1])))
 }
 
 // unquote unquotes files.
