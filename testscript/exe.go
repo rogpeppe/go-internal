@@ -122,7 +122,7 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 			}
 			scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
 				if ts.params.RequireExplicitExec {
-					ts.Fatalf("use 'exec %s' rather than '%s' (because RequireExplicitExec is enabled)", args[0], args[0])
+					ts.Fatalf("use 'exec %s' rather than '%s' (because RequireExplicitExec is enabled)", name, name)
 				}
 				ts.cmdExec(neg, append([]string{name}, args...))
 			}
