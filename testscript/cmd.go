@@ -253,7 +253,7 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 		if err == nil {
 			wait := make(chan struct{})
 			go func() {
-				ctxWait(ts.ctxt, cmd)
+				waitOrStop(ts.ctxt, cmd, -1)
 				close(wait)
 			}()
 			ts.background = append(ts.background, backgroundCmd{bgName, cmd, wait, neg})
