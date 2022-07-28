@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -177,11 +178,19 @@ type Params struct {
 	// the face of errors. Once an error has occurred, the script
 	// will continue as if in verbose mode.
 	ContinueOnError bool
+
+	// Deadline, if not zero, specifies the time at which the test run will have
+	// exceeded the timeout. It is equivalent to testing.T's Deadline method,
+	// and Run will set it to the method's return value if this field is zero.
+	Deadline time.Time
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
 // or ".txtar" extension are considered to be test files.
 func Run(t *testing.T, p Params) {
+	if deadline, ok := t.Deadline(); ok && p.Deadline.IsZero() {
+		p.Deadline = deadline
+	}
 	RunT(tshim{t}, p)
 }
 
@@ -256,6 +265,37 @@ func RunT(t T, p Params) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var (
+		ctx         = context.Background()
+		gracePeriod = 100 * time.Millisecond
+		cancel      context.CancelFunc
+	)
+	if !p.Deadline.IsZero() {
+		timeout := time.Until(p.Deadline)
+
+		// If time allows, increase the termination grace period to 5% of the
+		// remaining time.
+		if gp := timeout / 20; gp > gracePeriod {
+			gracePeriod = gp
+		}
+
+		// When we run commands that execute subprocesses, we want to reserve two
+		// grace periods to clean up. We will send the first termination signal when
+		// the context expires, then wait one grace period for the process to
+		// produce whatever useful output it can (such as a stack trace). After the
+		// first grace period expires, we'll escalate to os.Kill, leaving the second
+		// grace period for the test function to record its output before the test
+		// process itself terminates.
+		timeout -= 2 * gracePeriod
+
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		// We don't defer cancel() because RunT returns before the sub-tests,
+		// and we don't have access to Cleanup due to the T interface. Instead,
+		// we call it after the refCount goes to zero below.
+		_ = cancel
+	}
+
 	refCount := int32(len(files))
 	for _, file := range files {
 		file := file
@@ -269,7 +309,8 @@ func RunT(t T, p Params) {
 				name:          name,
 				file:          file,
 				params:        p,
-				ctxt:          context.Background(),
+				ctxt:          ctx,
+				gracePeriod:   gracePeriod,
 				deferred:      func() {},
 				scriptFiles:   make(map[string]string),
 				scriptUpdates: make(map[string]string),
@@ -281,8 +322,11 @@ func RunT(t T, p Params) {
 				removeAll(ts.workdir)
 				if atomic.AddInt32(&refCount, -1) == 0 {
 					// This is the last subtest to finish. Remove the
-					// parent directory too.
+					// parent directory too, and cancel the context.
 					os.Remove(testTempDir)
+					if cancel != nil {
+						cancel()
+					}
 				}
 			}()
 			ts.run()
@@ -317,7 +361,8 @@ type TestScript struct {
 	scriptFiles   map[string]string           // files stored in the txtar archive (absolute paths -> path in script)
 	scriptUpdates map[string]string           // updates to testscript files via UpdateScripts.
 
-	ctxt context.Context // per TestScript context
+	ctxt        context.Context // per TestScript context
+	gracePeriod time.Duration   // time between SIGQUIT and SIGKILL
 }
 
 type backgroundCmd struct {
@@ -346,6 +391,7 @@ func (ts *TestScript) setup() string {
 		Vars: []string{
 			"WORK=" + ts.workdir, // must be first for ts.abbrev
 			"PATH=" + os.Getenv("PATH"),
+			"GOTRACEBACK=system",
 			homeEnvName() + "=/no-home",
 			tempEnvName() + "=" + tmpDir,
 			"devnull=" + os.DevNull,
@@ -729,7 +775,7 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 	if err = cmd.Start(); err == nil {
-		err = ctxWait(ts.ctxt, cmd)
+		err = waitOrStop(ts.ctxt, cmd, ts.gracePeriod)
 	}
 	ts.stdin = ""
 	return stdoutBuf.String(), stderrBuf.String(), err
@@ -774,21 +820,68 @@ func (ts *TestScript) BackgroundCmds() []*exec.Cmd {
 	return cmds
 }
 
-// ctxWait is like cmd.Wait, but terminates cmd with os.Interrupt if ctx becomes done.
+// waitOrStop waits for the already-started command cmd by calling its Wait method.
 //
-// This differs from exec.CommandContext in that it prefers os.Interrupt over os.Kill.
-// (See https://golang.org/issue/21135.)
-func ctxWait(ctx context.Context, cmd *exec.Cmd) error {
-	errc := make(chan error, 1)
-	go func() { errc <- cmd.Wait() }()
-
-	select {
-	case err := <-errc:
-		return err
-	case <-ctx.Done():
-		interruptProcess(cmd.Process)
-		return <-errc
+// If cmd does not return before ctx is done, waitOrStop sends it an interrupt
+// signal. If killDelay is positive, waitOrStop waits that additional period for
+// Wait to return before sending os.Kill.
+func waitOrStop(ctx context.Context, cmd *exec.Cmd, killDelay time.Duration) error {
+	if cmd.Process == nil {
+		panic("waitOrStop called with a nil cmd.Process — missing Start call?")
 	}
+
+	errc := make(chan error)
+	go func() {
+		select {
+		case errc <- nil:
+			return
+		case <-ctx.Done():
+		}
+
+		var interrupt os.Signal = syscall.SIGQUIT
+		if runtime.GOOS == "windows" {
+			// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
+			// Windows; using it with os.Process.Signal will return an error.”
+			// Fall back directly to Kill instead.
+			interrupt = os.Kill
+		}
+
+		err := cmd.Process.Signal(interrupt)
+		if err == nil {
+			err = ctx.Err() // Report ctx.Err() as the reason we interrupted.
+		} else if err == os.ErrProcessDone {
+			errc <- nil
+			return
+		}
+
+		if killDelay > 0 {
+			timer := time.NewTimer(killDelay)
+			select {
+			// Report ctx.Err() as the reason we interrupted the process...
+			case errc <- ctx.Err():
+				timer.Stop()
+				return
+			// ...but after killDelay has elapsed, fall back to a stronger signal.
+			case <-timer.C:
+			}
+
+			// Wait still hasn't returned.
+			// Kill the process harder to make sure that it exits.
+			//
+			// Ignore any error: if cmd.Process has already terminated, we still
+			// want to send ctx.Err() (or the error from the Interrupt call)
+			// to properly attribute the signal that may have terminated it.
+			_ = cmd.Process.Kill()
+		}
+
+		errc <- err
+	}()
+
+	waitErr := cmd.Wait()
+	if interruptErr := <-errc; interruptErr != nil {
+		return interruptErr
+	}
+	return waitErr
 }
 
 // interruptProcess sends os.Interrupt to p if supported, or os.Kill otherwise.
