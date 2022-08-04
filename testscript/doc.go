@@ -120,6 +120,23 @@ when testing.Short() is false.
 
 Additional conditions can be added by passing a function to Params.Condition.
 
+A simple example:
+
+		Condition: func(cond string) (bool, error) {
+			switch cond {
+			case "always_true":
+				return true, nil
+			case "always_false":
+				return false, nil
+			default:
+				return false, fmt.Errorf("unrecognized condition %s", cond)
+			}
+		},
+
+For more complex conditions that require parameters (such as [exec:program_name]) you can
+split the `cond` argument and evaluate the components. The function `TestScripts` in testscript_test.go
+shows such an approach.
+
 The predefined commands are:
 
   - cd dir
