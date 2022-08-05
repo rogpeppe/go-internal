@@ -121,33 +121,31 @@ when testing.Short() is false.
 Additional conditions can be added by passing a function to Params.Condition.
 
 An example:
-
 		Condition: func(cond string) (bool, error) {
 			// Assume condition name and args are separated by colon (":")
 			args := strings.Split(cond, ":")
 			// Empty condition is already managed in testscript.run()
 			name := args[0]
 			switch name {
-			case "is_upper":
+			case "exists":
 				if len(args) < 2 {
-					return false, fmt.Errorf("syntax: [is_upper:word]")
+					return false, fmt.Errorf("syntax: [exists:file_name]")
 				}
-				return strings.ToUpper(args[1]) == args[1], nil
-			case "always_true":
-				return true, nil
+				_, err := os.Stat(args[1])
+				return !errors.Is(err, fs.ErrNotExist), nil
+			case "long":
+				return os.Getenv("TEST_LONG") != "", nil
 			default:
 				return false, fmt.Errorf("unrecognized condition %s", name)
 			}
 		},
 
 With the conditions so defined, you can use them as follows:
-
-	env upper_word=ABCD
-	env lower_word=abcd
-	# the first two conditions will allow the 'echo' command to run. The third one will go silent.
-	[always_true] exec echo 'this is true'
-	[is_upper:$upper_word] exec echo 'found an uppercase word'
-	[is_upper:$lower_word] exec echo 'found an uppercase word'
+	env file_name=/path/to/filename
+	[exists:$file_name] exec echo 'file was found'
+	env loops=1
+	[long] env loops=3
+	exec do_something $loops
 
 The predefined commands are:
 
