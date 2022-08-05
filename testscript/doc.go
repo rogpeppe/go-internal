@@ -120,22 +120,34 @@ when testing.Short() is false.
 
 Additional conditions can be added by passing a function to Params.Condition.
 
-A simple example:
+An example:
 
 		Condition: func(cond string) (bool, error) {
-			switch cond {
+			// Assume condition name and args are separated by colon (":")
+			args := strings.Split(cond, ":")
+			// Empty condition is already managed in testscript.run()
+			name := args[0]
+			switch name {
+			case "is_upper":
+				if len(args) < 2 {
+					return false, fmt.Errorf("syntax: [is_upper:word]")
+				}
+				return strings.ToUpper(args[1]) == args[1], nil
 			case "always_true":
 				return true, nil
-			case "always_false":
-				return false, nil
 			default:
-				return false, fmt.Errorf("unrecognized condition %s", cond)
+				return false, fmt.Errorf("unrecognized condition %s", name)
 			}
 		},
 
-For more complex conditions that require parameters (such as [exec:program_name]) you can
-split the `cond` argument and evaluate the components. The function `TestScripts` in testscript_test.go
-shows such an approach.
+With the conditions so defined, you can use them as follows:
+
+	env upper_word=ABCD
+	env lower_word=abcd
+	# the first two conditions will allow the 'echo' command to run. The third one will go silent.
+	[always_true] exec echo 'this is true'
+	[is_upper:$upper_word] exec echo 'found an uppercase word'
+	[is_upper:$lower_word] exec echo 'found an uppercase word'
 
 The predefined commands are:
 
