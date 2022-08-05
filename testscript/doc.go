@@ -119,6 +119,7 @@ A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false.
 
 Additional conditions can be added by passing a function to Params.Condition.
+The function will only be called when all built-in conditions have been checked for.
 
 An example:
 		Condition: func(cond string) (bool, error) {
