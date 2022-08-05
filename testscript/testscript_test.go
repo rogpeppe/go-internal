@@ -230,12 +230,12 @@ func TestScripts(t *testing.T) {
 			switch name {
 			case "is_upper":
 				if len(args) < 2 {
-					return false, fmt.Errorf("syntax: is_upper:word")
+					return false, fmt.Errorf("syntax: [is_upper:word]")
 				}
 				return strings.ToUpper(args[1]) == args[1], nil
 			case "is_lower":
 				if len(args) < 2 {
-					return false, fmt.Errorf("syntax: is_lower:word")
+					return false, fmt.Errorf("syntax: [is_lower:word]")
 				}
 				return strings.ToLower(args[1]) == args[1], nil
 			case "always_true":
