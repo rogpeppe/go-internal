@@ -125,7 +125,6 @@ An example:
 		Condition: func(cond string) (bool, error) {
 			// Assume condition name and args are separated by colon (":")
 			args := strings.Split(cond, ":")
-			// Empty condition is already managed in testscript.run()
 			name := args[0]
 			switch name {
 			case "exists":
