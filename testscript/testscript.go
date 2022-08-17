@@ -426,7 +426,7 @@ func (ts *TestScript) run() {
 
 		markTime()
 		// Flush testScript log to testing.T log.
-		ts.t.Log("\n" + ts.abbrev(ts.log.String()))
+		ts.t.Log(ts.abbrev(ts.log.String()))
 	}()
 	defer func() {
 		ts.deferred()
