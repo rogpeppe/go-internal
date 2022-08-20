@@ -64,16 +64,16 @@ func Open(name string) (*File, error) {
 
 // Create is like os.Create, but returns a write-locked file.
 func Create(name string) (*File, error) {
-	return OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	return OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666)
 }
 
-// Edit creates the named file with mode 0666 (before umask),
+// Edit creates the named file with mode 0o666 (before umask),
 // but does not truncate existing contents.
 //
 // If Edit succeeds, methods on the returned File can be used for I/O.
 // The associated file descriptor has mode O_RDWR and the file is write-locked.
 func Edit(name string) (*File, error) {
-	return OpenFile(name, os.O_RDWR|os.O_CREATE, 0666)
+	return OpenFile(name, os.O_RDWR|os.O_CREATE, 0o666)
 }
 
 // Close unlocks and closes the underlying file.

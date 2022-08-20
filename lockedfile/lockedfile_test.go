@@ -157,7 +157,7 @@ func TestCanLockExistingFile(t *testing.T) {
 	defer remove()
 	path := filepath.Join(dir, "existing.txt")
 
-	if err := ioutil.WriteFile(path, []byte("ok"), 0777); err != nil {
+	if err := ioutil.WriteFile(path, []byte("ok"), 0o777); err != nil {
 		t.Fatalf("ioutil.WriteFile: %v", err)
 	}
 
@@ -203,7 +203,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		}
 		defer b.Close()
 
-		if err := ioutil.WriteFile(filepath.Join(dir, "locked"), []byte("ok"), 0666); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(dir, "locked"), []byte("ok"), 0o666); err != nil {
 			t.Fatal(err)
 		}
 

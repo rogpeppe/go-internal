@@ -6,15 +6,15 @@
 //
 // The goals for the format are:
 //
-//	- be trivial enough to create and edit by hand.
-//	- be able to store trees of text files describing go command test cases.
-//	- diff nicely in git history and code reviews.
+//   - be trivial enough to create and edit by hand.
+//   - be able to store trees of text files describing go command test cases.
+//   - diff nicely in git history and code reviews.
 //
 // Non-goals include being a completely general archive format,
 // storing binary data, storing file modes, storing special files like
 // symbolic links, and so on.
 //
-// Txtar format
+// # Txtar format
 //
 // A txtar archive is zero or more comment lines and then a sequence of file entries.
 // Each file entry begins with a file marker line of the form "-- FILENAME --"
@@ -206,11 +206,11 @@ func Write(a *Archive, dir string) error {
 		}
 		fp = filepath.Join(dir, fp)
 
-		if err := os.MkdirAll(filepath.Dir(fp), 0777); err != nil {
+		if err := os.MkdirAll(filepath.Dir(fp), 0o777); err != nil {
 			return err
 		}
 		// Avoid overwriting existing files by using O_EXCL.
-		out, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+		out, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
 		if err != nil {
 			return err
 		}
