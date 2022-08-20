@@ -244,6 +244,7 @@ func RunT(t T, p Params) {
 	for _, file := range files {
 		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
+		name = strings.TrimSuffix(name, ".txtar")
 		t.Run(name, func(t T) {
 			t.Parallel()
 			ts := &TestScript{
