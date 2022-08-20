@@ -186,16 +186,16 @@ func (ts *TestScript) cmdCp(neg bool, args []string) {
 		case "stdout":
 			src = arg
 			data = []byte(ts.stdout)
-			mode = 0666
+			mode = 0o666
 		case "stderr":
 			src = arg
 			data = []byte(ts.stderr)
-			mode = 0666
+			mode = 0o666
 		default:
 			src = ts.MkAbs(arg)
 			info, err := os.Stat(src)
 			ts.Check(err)
-			mode = info.Mode() & 0777
+			mode = info.Mode() & 0o777
 			data, err = ioutil.ReadFile(src)
 			ts.Check(err)
 		}
@@ -306,7 +306,7 @@ func (ts *TestScript) cmdExists(neg bool, args []string) {
 		if err != nil && !neg {
 			ts.Fatalf("%s does not exist", file)
 		}
-		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
+		if err == nil && !neg && readonly && info.Mode()&0o222 != 0 {
 			ts.Fatalf("%s exists but is writable", file)
 		}
 	}
@@ -321,7 +321,7 @@ func (ts *TestScript) cmdMkdir(neg bool, args []string) {
 		ts.Fatalf("usage: mkdir dir...")
 	}
 	for _, arg := range args {
-		ts.Check(os.MkdirAll(ts.MkAbs(arg), 0777))
+		ts.Check(os.MkdirAll(ts.MkAbs(arg), 0o777))
 	}
 }
 
@@ -346,7 +346,7 @@ func (ts *TestScript) cmdUnquote(neg bool, args []string) {
 		ts.Check(err)
 		data, err = txtar.Unquote(data)
 		ts.Check(err)
-		err = ioutil.WriteFile(file, data, 0666)
+		err = ioutil.WriteFile(file, data, 0o666)
 		ts.Check(err)
 	}
 }
@@ -457,7 +457,7 @@ func (ts *TestScript) cmdUNIX2DOS(neg bool, args []string) {
 		ts.Check(err)
 		dosData, err := unix2DOS(data)
 		ts.Check(err)
-		if err := ioutil.WriteFile(filename, dosData, 0666); err != nil {
+		if err := ioutil.WriteFile(filename, dosData, 0o666); err != nil {
 			ts.Fatalf("%s: %v", filename, err)
 		}
 	}

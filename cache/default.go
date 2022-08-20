@@ -38,7 +38,7 @@ func initDefaultCache() {
 	if dir == "off" {
 		return
 	}
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		if showWarnings {
 			fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
 		}
@@ -46,7 +46,7 @@ func initDefaultCache() {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
 		// Best effort.
-		ioutil.WriteFile(filepath.Join(dir, "README"), []byte(cacheREADME), 0666)
+		ioutil.WriteFile(filepath.Join(dir, "README"), []byte(cacheREADME), 0o666)
 	}
 
 	c, err := Open(dir)
