@@ -10,7 +10,6 @@
 //
 // See https://godoc.org/github.com/rogpeppe/go-internal/txtar for details of the format
 // and how to parse a txtar file.
-//
 package main
 
 import (
@@ -35,8 +34,9 @@ func usage() {
 }
 
 var (
-	quoteFlag = flag.Bool("quote", false, "quote files that contain txtar file markers instead of failing")
-	allFlag   = flag.Bool("a", false, "include dot files too")
+	quoteFlag  = flag.Bool("quote", false, "quote files that contain txtar file markers instead of failing")
+	scriptFlag = flag.String("script", "", "include testscript `FILE` (after any 'unquote' lines)")
+	allFlag    = flag.Bool("a", false, "include dot files too")
 )
 
 func main() {
@@ -105,7 +105,13 @@ func main1() int {
 		})
 		return nil
 	})
-
+	if *scriptFlag != "" {
+		script, err := os.ReadFile(*scriptFlag)
+		if err != nil {
+			log.Fatal(err)
+		}
+		a.Comment = append(a.Comment, script...)
+	}
 	data := txtar.Format(a)
 	os.Stdout.Write(data)
 
