@@ -61,7 +61,7 @@ module condition_errors
 go 1.18
 
 require (
-	github.com/rogpeppe/go-internal v1.8.1
+	github.com/rogpeppe/go-internal v1.9.0
 )
 
 -- cond_errors/testdata/is_upper-no-parameter.txt --
