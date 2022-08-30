@@ -38,7 +38,7 @@ func unquote(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Check(err)
 		data = bytes.Replace(data, []byte("\n>"), []byte("\n"), -1)
 		data = bytes.TrimPrefix(data, []byte(">"))
-		err = ioutil.WriteFile(file, data, 0666)
+		err = ioutil.WriteFile(file, data, 0o666)
 		ts.Check(err)
 	}
 }

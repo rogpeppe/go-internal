@@ -15,7 +15,6 @@
 // very large files into testdata/mod.
 //
 // It is acceptable to edit the archive afterward to remove or shorten files.
-//
 package main
 
 import (
@@ -107,7 +106,7 @@ func main1() int {
 
 	exitCode := 0
 	for _, arg := range modules {
-		if err := ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module m\n"), 0666); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module m\n"), 0o666); err != nil {
 			fatalf("%v", err)
 		}
 		run(goCmd, "get", "-d", arg)
@@ -202,7 +201,7 @@ func main1() int {
 				break
 			}
 		} else {
-			if err := ioutil.WriteFile(filepath.Join(targetDir, modDir+".txtar"), data, 0666); err != nil {
+			if err := ioutil.WriteFile(filepath.Join(targetDir, modDir+".txtar"), data, 0o666); err != nil {
 				log.Printf("%s: %v", arg, err)
 				exitCode = 1
 				continue

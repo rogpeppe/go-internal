@@ -110,7 +110,6 @@ cmpenv stdout stdout.golden
 >a
 >a
 -- stdout.golden --
-
 > cmp a b
 --- a
 +++ b

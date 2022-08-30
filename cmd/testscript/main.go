@@ -123,7 +123,7 @@ func mainerr() (retErr error) {
 		}
 
 		runDir := filepath.Join(td, dirName)
-		if err := os.Mkdir(runDir, 0777); err != nil {
+		if err := os.Mkdir(runDir, 0o777); err != nil {
 			return fmt.Errorf("failed to create a run directory within %v for %v: %v", td, renderFilename(filename), err)
 		}
 		if err := tr.run(runDir, filename); err != nil {
@@ -160,7 +160,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 
 	mods := filepath.Join(runDir, goModProxyDir)
 
-	if err := os.MkdirAll(mods, 0777); err != nil {
+	if err := os.MkdirAll(mods, 0o777); err != nil {
 		return fmt.Errorf("failed to create goModProxy dir: %v", err)
 	}
 
@@ -198,7 +198,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 
 	scriptFile := filepath.Join(runDir, "script.txtar")
 
-	if err := ioutil.WriteFile(scriptFile, txtar.Format(&script), 0666); err != nil {
+	if err := ioutil.WriteFile(scriptFile, txtar.Format(&script), 0o666); err != nil {
 		return fmt.Errorf("failed to write script for %v: %v", renderFilename(filename), err)
 	}
 
@@ -310,13 +310,12 @@ func (tr *testRunner) run(runDir, filename string) error {
 				ar.Files[i] = newF
 			}
 		}
-		if err := ioutil.WriteFile(filename, txtar.Format(ar), 0666); err != nil {
+		if err := ioutil.WriteFile(filename, txtar.Format(ar), 0o666); err != nil {
 			return fmt.Errorf("failed to write script back to %v for -update: %v", renderFilename(filename), err)
 		}
 	}
 
 	return nil
-
 }
 
 var (

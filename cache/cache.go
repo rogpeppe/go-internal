@@ -46,7 +46,6 @@ type Cache struct {
 // to share a cache directory (for example, if the directory were stored
 // in a network file system). File locking is notoriously unreliable in
 // network file systems and may not suffice to protect the cache.
-//
 func Open(dir string) (*Cache, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
@@ -57,11 +56,11 @@ func Open(dir string) (*Cache, error) {
 	}
 	for i := 0; i < 256; i++ {
 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
-		if err := os.MkdirAll(name, 0777); err != nil {
+		if err := os.MkdirAll(name, 0o777); err != nil {
 			return nil, err
 		}
 	}
-	f, err := os.OpenFile(filepath.Join(dir, "log.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	f, err := os.OpenFile(filepath.Join(dir, "log.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o666)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +282,7 @@ func (c *Cache) Trim() {
 		c.trimSubdir(subdir, cutoff)
 	}
 
-	ioutil.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
+	ioutil.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0o666)
 }
 
 // trimSubdir trims a single cache subdirectory.
@@ -337,7 +336,7 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 		}
 	}
 	file := c.fileName(id, "a")
-	if err := ioutil.WriteFile(file, entry, 0666); err != nil {
+	if err := ioutil.WriteFile(file, entry, 0o666); err != nil {
 		os.Remove(file)
 		return err
 	}
@@ -414,7 +413,7 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
 	if err == nil && info.Size() > size { // shouldn't happen but fix in case
 		mode |= os.O_TRUNC
 	}
-	f, err := os.OpenFile(name, mode, 0666)
+	f, err := os.OpenFile(name, mode, 0o666)
 	if err != nil {
 		return err
 	}

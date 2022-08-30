@@ -244,6 +244,7 @@ func RunT(t T, p Params) {
 	for _, file := range files {
 		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
+		name = strings.TrimSuffix(name, ".txtar")
 		t.Run(name, func(t T) {
 			t.Parallel()
 			ts := &TestScript{
@@ -324,7 +325,7 @@ func (ts *TestScript) setup() string {
 	// cmd/go as it walks directories to match the ./... pattern.
 	tmpDir := filepath.Join(ts.workdir, ".tmp")
 
-	ts.Check(os.MkdirAll(tmpDir, 0777))
+	ts.Check(os.MkdirAll(tmpDir, 0o777))
 	env := &Env{
 		Vars: []string{
 			"WORK=" + ts.workdir, // must be first for ts.abbrev
@@ -364,8 +365,8 @@ func (ts *TestScript) setup() string {
 	for _, f := range a.Files {
 		name := ts.MkAbs(ts.expand(f.Name))
 		ts.scriptFiles[name] = f.Name
-		ts.Check(os.MkdirAll(filepath.Dir(name), 0777))
-		ts.Check(ioutil.WriteFile(name, f.Data, 0666))
+		ts.Check(os.MkdirAll(filepath.Dir(name), 0o777))
+		ts.Check(ioutil.WriteFile(name, f.Data, 0o666))
 	}
 	// Run any user-defined setup.
 	if ts.params.Setup != nil {
@@ -425,7 +426,7 @@ func (ts *TestScript) run() {
 
 		markTime()
 		// Flush testScript log to testing.T log.
-		ts.t.Log("\n" + ts.abbrev(ts.log.String()))
+		ts.t.Log(ts.abbrev(ts.log.String()))
 	}()
 	defer func() {
 		ts.deferred()
@@ -582,7 +583,7 @@ func (ts *TestScript) applyScriptUpdates() {
 			panic("script update file not found")
 		}
 	}
-	if err := ioutil.WriteFile(ts.file, txtar.Format(ts.archive), 0666); err != nil {
+	if err := ioutil.WriteFile(ts.file, txtar.Format(ts.archive), 0o666); err != nil {
 		ts.t.Fatal("cannot update script: ", err)
 	}
 	ts.Logf("%s updated", ts.file)
@@ -890,14 +891,14 @@ func (ts *TestScript) parse(line string) []string {
 }
 
 func removeAll(dir string) error {
-	// module cache has 0444 directories;
+	// module cache has 0o444 directories;
 	// make them writable in order to remove content.
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // ignore errors walking in file system
 		}
 		if info.IsDir() {
-			os.Chmod(path, 0777)
+			os.Chmod(path, 0o777)
 		}
 		return nil
 	})

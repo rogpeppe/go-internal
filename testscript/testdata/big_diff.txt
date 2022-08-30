@@ -7,7 +7,6 @@ env
 cmpenv stdout stdout.golden
 
 -- stdout.golden --
-
 > cmp a b
 FAIL: $$WORK${/}dir${/}script.txt:1: large files a and b differ
 -- dir/script.txt --

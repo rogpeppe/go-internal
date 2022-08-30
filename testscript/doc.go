@@ -56,11 +56,13 @@ As an example:
 Each script runs in a fresh temporary work directory tree, available to scripts as $WORK.
 Scripts also have access to these other environment variables:
 
-	HOME=/no-home
 	PATH=<actual PATH>
-	TMPDIR=$WORK/tmp
+	HOME=/no-home
+	TMPDIR=$WORK/.tmp
 	devnull=<value of os.DevNull>
-	goversion=<current Go version; for example, 1.12>
+	/=<value of os.PathSeparator>
+	:=<value of os.PathListSeparator>
+	$=$
 
 The environment variable $exe (lowercase) is an empty string on most
 systems, ".exe" on Windows.

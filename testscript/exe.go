@@ -78,7 +78,7 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 			}
 		}()
 		bindir := filepath.Join(tmpdir, "bin")
-		if err := os.MkdirAll(bindir, 0777); err != nil {
+		if err := os.MkdirAll(bindir, 0o777); err != nil {
 			log.Printf("could not set up PATH binary directory: %v", err)
 			return 2
 		}
@@ -91,7 +91,7 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 		// profiles into the main profile.
 		if coverProfile() != "" {
 			coverdir := filepath.Join(tmpdir, "cover")
-			if err := os.MkdirAll(coverdir, 0777); err != nil {
+			if err := os.MkdirAll(coverdir, 0o777); err != nil {
 				log.Printf("could not set up cover directory: %v", err)
 				return 2
 			}
@@ -181,7 +181,7 @@ func copyBinary(from, to string) error {
 			return nil
 		}
 	}
-	writer, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE, 0777)
+	writer, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE, 0o777)
 	if err != nil {
 		return err
 	}
@@ -284,6 +284,7 @@ func (nopTestDeps) StopCPUProfile() {}
 func (nopTestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
 	return nil
 }
+
 func (nopTestDeps) ImportPath() string {
 	return ""
 }

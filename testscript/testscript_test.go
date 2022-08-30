@@ -49,7 +49,7 @@ func signalCatcher() int {
 	signal.Notify(c, os.Interrupt)
 	// Create a file so that the test can know that
 	// we will catch the signal.
-	if err := ioutil.WriteFile("catchsignal", nil, 0666); err != nil {
+	if err := ioutil.WriteFile("catchsignal", nil, 0o666); err != nil {
 		fmt.Println(err)
 		return 1
 	}
@@ -77,7 +77,7 @@ func TestCRLFInput(t *testing.T) {
 	}()
 	tf := filepath.Join(td, "script.txt")
 	contents := []byte("exists output.txt\r\n-- output.txt --\r\noutput contents")
-	if err := ioutil.WriteFile(tf, contents, 0644); err != nil {
+	if err := ioutil.WriteFile(tf, contents, 0o644); err != nil {
 		t.Fatalf("failed to write to %v: %v", tf, err)
 	}
 	t.Run("_", func(t *testing.T) {
