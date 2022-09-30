@@ -14,3 +14,7 @@ Included are the following:
 - testenv: information on the current testing environment.
 - testscript: script-based testing based on txtar files
 - txtar: simple text-based file archives for testing.
+
+# Links
+
+- [Test scripts in Go](https://bitfieldconsulting.com/golang/test-scripts)
