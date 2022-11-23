@@ -540,6 +540,13 @@ Script:
 	}
 	ts.cmdWait(false, nil)
 
+	// If we reached here but T considers it failed, don't wipe the log and print "PASS".
+	// cmd/testscript behaves this way with the `-continue` flag; when turned on,
+	// its T.FailNow method does not panic, letting the test continue to run.
+	if hasFailed(ts.t) {
+		return
+	}
+
 	// Final phase ended.
 	rewind()
 	markTime()
