@@ -65,6 +65,7 @@ func mainerr() (retErr error) {
 	var envVars envVarsFlag
 	fUpdate := fs.Bool("u", false, "update archive file if a cmp fails")
 	fWork := fs.Bool("work", false, "print temporary work directory and do not remove when done")
+	fContinue := fs.Bool("continue", false, "continue running the script if an error occurs")
 	fVerbose := fs.Bool("v", false, "run tests verbosely")
 	fs.Var(&envVars, "e", "pass through environment variable to script (can appear multiple times)")
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -101,10 +102,11 @@ func mainerr() (retErr error) {
 	}
 
 	tr := testRunner{
-		update:   *fUpdate,
-		verbose:  *fVerbose,
-		env:      envVars.vals,
-		testWork: *fWork,
+		update:          *fUpdate,
+		continueOnError: *fContinue,
+		verbose:         *fVerbose,
+		env:             envVars.vals,
+		testWork:        *fWork,
 	}
 
 	dirNames := make(map[string]int)
@@ -138,6 +140,10 @@ type testRunner struct {
 	// update denotes that the source testscript archive filename should be
 	// updated in the case of any cmp failures.
 	update bool
+
+	// continueOnError indicates that T.FailNow should not panic, allowing the
+	// test script to continue running. Note that T is still marked as failed.
+	continueOnError bool
 
 	// verbose indicates the running of the script should be noisy.
 	verbose bool
@@ -271,8 +277,9 @@ func (tr *testRunner) run(runDir, filename string) error {
 		})
 	}
 
-	r := runT{
-		verbose: tr.verbose,
+	r := &runT{
+		continueOnError: tr.continueOnError,
+		verbose:         tr.verbose,
 	}
 
 	func() {
@@ -286,6 +293,12 @@ func (tr *testRunner) run(runDir, filename string) error {
 			}
 		}()
 		testscript.RunT(r, p)
+
+		// When continueOnError is true, FailNow does not call panic(failedRun).
+		// We still want err to be set, as the script resulted in a failure.
+		if r.Failed() {
+			err = failedRun
+		}
 	}()
 
 	if err != nil {
@@ -334,44 +347,47 @@ func renderFilename(filename string) string {
 
 // runT implements testscript.T and is used in the call to testscript.Run
 type runT struct {
-	verbose bool
-	failed  int32
+	verbose         bool
+	continueOnError bool
+	failed          int32
 }
 
-func (r runT) Skip(is ...interface{}) {
+func (r *runT) Skip(is ...interface{}) {
 	panic(skipRun)
 }
 
-func (r runT) Fatal(is ...interface{}) {
+func (r *runT) Fatal(is ...interface{}) {
 	r.Log(is...)
 	r.FailNow()
 }
 
-func (r runT) Parallel() {
+func (r *runT) Parallel() {
 	// No-op for now; we are currently only running a single script in a
 	// testscript instance.
 }
 
-func (r runT) Log(is ...interface{}) {
+func (r *runT) Log(is ...interface{}) {
 	fmt.Print(is...)
 }
 
-func (r runT) FailNow() {
+func (r *runT) FailNow() {
 	atomic.StoreInt32(&r.failed, 1)
-	panic(failedRun)
+	if !r.continueOnError {
+		panic(failedRun)
+	}
 }
 
-func (r runT) Failed() bool {
+func (r *runT) Failed() bool {
 	return atomic.LoadInt32(&r.failed) != 0
 }
 
-func (r runT) Run(n string, f func(t testscript.T)) {
+func (r *runT) Run(n string, f func(t testscript.T)) {
 	// For now we we don't top/tail the run of a subtest. We are currently only
 	// running a single script in a testscript instance, which means that we
 	// will only have a single subtest.
 	f(r)
 }
 
-func (r runT) Verbose() bool {
+func (r *runT) Verbose() bool {
 	return r.verbose
 }
