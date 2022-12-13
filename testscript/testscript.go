@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -173,6 +174,10 @@ type Params struct {
 	// consistency across test scripts as well as keep separate process
 	// executions explicit.
 	RequireExplicitExec bool
+
+	// RequireUniqueNames requires that names in the txtar archive are unique.
+	// By default, later entries silently overwrite earlier ones.
+	RequireUniqueNames bool
 
 	// ContinueOnError causes a testscript to try to continue in
 	// the face of errors. Once an error has occurred, the script
@@ -372,6 +377,22 @@ type backgroundCmd struct {
 	neg  bool // if true, cmd should fail
 }
 
+func writeFile(name string, data []byte, perm fs.FileMode, excl bool) error {
+	oflags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	if excl {
+		oflags |= os.O_EXCL
+	}
+	f, err := os.OpenFile(name, oflags, perm)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.Write(data); err != nil {
+		return fmt.Errorf("cannot write file contents: %v", err)
+	}
+	return nil
+}
+
 // setup sets up the test execution temporary directory and environment.
 // It returns the comment section of the txtar archive.
 func (ts *TestScript) setup() string {
@@ -433,7 +454,12 @@ func (ts *TestScript) setup() string {
 		name := ts.MkAbs(ts.expand(f.Name))
 		ts.scriptFiles[name] = f.Name
 		ts.Check(os.MkdirAll(filepath.Dir(name), 0o777))
-		ts.Check(ioutil.WriteFile(name, f.Data, 0o666))
+		switch err := writeFile(name, f.Data, 0o666, ts.params.RequireUniqueNames); {
+		case ts.params.RequireUniqueNames && errors.Is(err, fs.ErrExist):
+			ts.Check(fmt.Errorf("%s would overwrite %s (because RequireUniqueNames is enabled)", f.Name, name))
+		default:
+			ts.Check(err)
+		}
 	}
 	// Run any user-defined setup.
 	if ts.params.Setup != nil {
