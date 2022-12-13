@@ -213,6 +213,7 @@ func TestScripts(t *testing.T) {
 				fset := flag.NewFlagSet("testscript", flag.ContinueOnError)
 				fUpdate := fset.Bool("update", false, "update scripts when cmp fails")
 				fExplicitExec := fset.Bool("explicit-exec", false, "require explicit use of exec for commands")
+				fUniqueNames := fset.Bool("unique-names", false, "require unique names in txtar archive")
 				fVerbose := fset.Bool("v", false, "be verbose with output")
 				fContinue := fset.Bool("continue", false, "continue on error")
 				if err := fset.Parse(args); err != nil {
@@ -229,6 +230,7 @@ func TestScripts(t *testing.T) {
 						Dir:                 ts.MkAbs(dir),
 						UpdateScripts:       *fUpdate,
 						RequireExplicitExec: *fExplicitExec,
+						RequireUniqueNames:  *fUniqueNames,
 						Cmds: map[string]func(ts *TestScript, neg bool, args []string){
 							"some-param-cmd": func(ts *TestScript, neg bool, args []string) {
 							},
