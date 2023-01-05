@@ -59,6 +59,11 @@ func signalCatcher() int {
 }
 
 func TestMain(m *testing.M) {
+	timeSince = func(t time.Time) time.Duration {
+		return 0
+	}
+
+	showVerboseEnv = false
 	os.Exit(RunMain(m, map[string]func() int{
 		"printargs":     printArgs,
 		"fprintargs":    fprintArgs,
@@ -183,12 +188,13 @@ func TestScripts(t *testing.T) {
 				fset := flag.NewFlagSet("testscript", flag.ContinueOnError)
 				fUpdate := fset.Bool("update", false, "update scripts when cmp fails")
 				fExplicitExec := fset.Bool("explicit-exec", false, "require explicit use of exec for commands")
-				fVerbose := fset.Bool("verbose", false, "be verbose with output")
+				fVerbose := fset.Bool("v", false, "be verbose with output")
+				fContinue := fset.Bool("continue", false, "continue on error")
 				if err := fset.Parse(args); err != nil {
 					ts.Fatalf("failed to parse args for testscript: %v", err)
 				}
 				if fset.NArg() != 1 {
-					ts.Fatalf("testscript [-verbose] [-update] [-explicit-exec] <dir>")
+					ts.Fatalf("testscript [-v] [-continue] [-update] [-explicit-exec] <dir>")
 				}
 				dir := fset.Arg(0)
 				t := &fakeT{ts: ts, verbose: *fVerbose}
@@ -208,6 +214,7 @@ func TestScripts(t *testing.T) {
 							"some-param-cmd": func(ts *TestScript, neg bool, args []string) {
 							},
 						},
+						ContinueOnError: *fContinue,
 					})
 				}()
 				ts.stdout = strings.Replace(t.log.String(), ts.workdir, "$WORK", -1)

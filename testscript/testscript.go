@@ -10,6 +10,7 @@ package testscript
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"go/build"
@@ -39,6 +40,16 @@ var execCache par.Cache
 // and does not remove it when done, so that a programmer can
 // poke at the test file tree afterward.
 var testWork = flag.Bool("testwork", false, "")
+
+// timeSince is defined as a variable so that it can be overridden
+// for the local testscript tests so that we can test against predictable
+// output.
+var timeSince = time.Since
+
+// showVerboseEnv specifies whether the environment should be displayed
+// automatically when in verbose mode. This is set to false for the local testscript tests so we
+// can test against predictable output.
+var showVerboseEnv = true
 
 // Env holds the environment to use at the start of a test script invocation.
 type Env struct {
@@ -161,6 +172,11 @@ type Params struct {
 	// consistency across test scripts as well as keep separate process
 	// executions explicit.
 	RequireExplicitExec bool
+
+	// ContinueOnError causes a testscript to try to continue in
+	// the face of errors. Once an error has occurred, the script
+	// will continue as if in verbose mode.
+	ContinueOnError bool
 }
 
 // RunDir runs the tests in the given directory. All files in dir with a ".txt"
@@ -389,8 +405,9 @@ func (ts *TestScript) setup() string {
 func (ts *TestScript) run() {
 	// Truncate log at end of last phase marker,
 	// discarding details of successful phase.
+	verbose := ts.t.Verbose()
 	rewind := func() {
-		if !ts.t.Verbose() {
+		if !verbose {
 			ts.log.Truncate(ts.mark)
 		}
 	}
@@ -400,12 +417,13 @@ func (ts *TestScript) run() {
 		if ts.mark > 0 && !ts.start.IsZero() {
 			afterMark := append([]byte{}, ts.log.Bytes()[ts.mark:]...)
 			ts.log.Truncate(ts.mark - 1) // cut \n and afterMark
-			fmt.Fprintf(&ts.log, " (%.3fs)\n", time.Since(ts.start).Seconds())
+			fmt.Fprintf(&ts.log, " (%.3fs)\n", timeSince(ts.start).Seconds())
 			ts.log.Write(afterMark)
 		}
 		ts.start = time.Time{}
 	}
 
+	failed := false
 	defer func() {
 		// On a normal exit from the test loop, background processes are cleaned up
 		// before we print PASS. If we return early (e.g., due to a test failure),
@@ -413,7 +431,7 @@ func (ts *TestScript) run() {
 		for _, bg := range ts.background {
 			interruptProcess(bg.cmd.Process)
 		}
-		if ts.t.Verbose() || hasFailed(ts.t) {
+		if ts.t.Verbose() || failed {
 			// In verbose mode or on test failure, we want to see what happened in the background
 			// processes too.
 			ts.waitBackground(false)
@@ -434,7 +452,7 @@ func (ts *TestScript) run() {
 	script := ts.setup()
 
 	// With -v or -testwork, start log with full environment.
-	if *testWork || ts.t.Verbose() {
+	if *testWork || (showVerboseEnv && ts.t.Verbose()) {
 		// Display environment.
 		ts.cmdEnv(false, nil)
 		fmt.Fprintf(&ts.log, "\n")
@@ -444,7 +462,6 @@ func (ts *TestScript) run() {
 
 	// Run script.
 	// See testdata/script/README for documentation of script form.
-Script:
 	for script != "" {
 		// Extract next line.
 		ts.lineno++
@@ -458,7 +475,9 @@ Script:
 		// # is a comment indicating the start of new phase.
 		if strings.HasPrefix(line, "#") {
 			// If there was a previous phase, it succeeded,
-			// so rewind the log to delete its details (unless -v is in use).
+			// so rewind the log to delete its details (unless -v is in use or
+			// ContinueOnError was enabled and there was a previous error,
+			// causing verbose to be set to true).
 			// If nothing has happened at all since the mark,
 			// rewinding is a no-op and adding elapsed time
 			// for doing nothing is meaningless, so don't.
@@ -473,59 +492,15 @@ Script:
 			continue
 		}
 
-		// Parse input line. Ignore blanks entirely.
-		args := ts.parse(line)
-		if len(args) == 0 {
-			continue
-		}
-
-		// Echo command to log.
-		fmt.Fprintf(&ts.log, "> %s\n", line)
-
-		// Command prefix [cond] means only run this command if cond is satisfied.
-		for strings.HasPrefix(args[0], "[") && strings.HasSuffix(args[0], "]") {
-			cond := args[0]
-			cond = cond[1 : len(cond)-1]
-			cond = strings.TrimSpace(cond)
-			args = args[1:]
-			if len(args) == 0 {
-				ts.Fatalf("missing command after condition")
-			}
-			want := true
-			if strings.HasPrefix(cond, "!") {
-				want = false
-				cond = strings.TrimSpace(cond[1:])
-			}
-			ok, err := ts.condition(cond)
-			if err != nil {
-				ts.Fatalf("bad condition %q: %v", cond, err)
-			}
-			if ok != want {
-				// Don't run rest of line.
-				continue Script
+		ok := ts.runLine(line)
+		if !ok {
+			failed = true
+			if ts.params.ContinueOnError {
+				verbose = true
+			} else {
+				ts.t.FailNow()
 			}
 		}
-
-		// Command prefix ! means negate the expectations about this command:
-		// go command should fail, match should not be found, etc.
-		neg := false
-		if args[0] == "!" {
-			neg = true
-			args = args[1:]
-			if len(args) == 0 {
-				ts.Fatalf("! on line by itself")
-			}
-		}
-
-		// Run command.
-		cmd := scriptCmds[args[0]]
-		if cmd == nil {
-			cmd = ts.params.Cmds[args[0]]
-		}
-		if cmd == nil {
-			ts.Fatalf("unknown command %q", args[0])
-		}
-		cmd(ts, neg, args[1:])
 
 		// Command can ask script to stop early.
 		if ts.stopped {
@@ -540,11 +515,10 @@ Script:
 	}
 	ts.cmdWait(false, nil)
 
-	// If we reached here but T considers it failed, don't wipe the log and print "PASS".
-	// cmd/testscript behaves this way with the `-continue` flag; when turned on,
-	// its T.FailNow method does not panic, letting the test continue to run.
-	if hasFailed(ts.t) {
-		return
+	// If we reached here but we've failed (probably because ContinueOnError
+	// was set), don't wipe the log and print "PASS".
+	if failed {
+		ts.t.FailNow()
 	}
 
 	// Final phase ended.
@@ -555,11 +529,73 @@ Script:
 	}
 }
 
-func hasFailed(t T) bool {
-	if t, ok := t.(TFailed); ok {
-		return t.Failed()
+var failNow = errors.New("fail now!")
+
+func (ts *TestScript) runLine(line string) (runOK bool) {
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+		if e != failNow {
+			panic(e)
+		}
+		runOK = false
+	}()
+	// Parse input line. Ignore blanks entirely.
+	args := ts.parse(line)
+	if len(args) == 0 {
+		return true
 	}
-	return false
+
+	// Echo command to log.
+	fmt.Fprintf(&ts.log, "> %s\n", line)
+
+	// Command prefix [cond] means only run this command if cond is satisfied.
+	for strings.HasPrefix(args[0], "[") && strings.HasSuffix(args[0], "]") {
+		cond := args[0]
+		cond = cond[1 : len(cond)-1]
+		cond = strings.TrimSpace(cond)
+		args = args[1:]
+		if len(args) == 0 {
+			ts.Fatalf("missing command after condition")
+		}
+		want := true
+		if strings.HasPrefix(cond, "!") {
+			want = false
+			cond = strings.TrimSpace(cond[1:])
+		}
+		ok, err := ts.condition(cond)
+		if err != nil {
+			ts.Fatalf("bad condition %q: %v", cond, err)
+		}
+		if ok != want {
+			// Don't run rest of line.
+			return true
+		}
+	}
+
+	// Command prefix ! means negate the expectations about this command:
+	// go command should fail, match should not be found, etc.
+	neg := false
+	if args[0] == "!" {
+		neg = true
+		args = args[1:]
+		if len(args) == 0 {
+			ts.Fatalf("! on line by itself")
+		}
+	}
+
+	// Run command.
+	cmd := scriptCmds[args[0]]
+	if cmd == nil {
+		cmd = ts.params.Cmds[args[0]]
+	}
+	if cmd == nil {
+		ts.Fatalf("unknown command %q", args[0])
+	}
+	cmd(ts, neg, args[1:])
+	return true
 }
 
 func (ts *TestScript) applyScriptUpdates() {
@@ -577,7 +613,7 @@ func (ts *TestScript) applyScriptUpdates() {
 			if txtar.NeedsQuote(data) {
 				data1, err := txtar.Quote(data)
 				if err != nil {
-					ts.t.Fatal(fmt.Sprintf("cannot update script file %q: %v", f.Name, err))
+					ts.Fatalf("cannot update script file %q: %v", f.Name, err)
 					continue
 				}
 				data = data1
@@ -792,7 +828,10 @@ func (ts *TestScript) expand(s string) string {
 // fatalf aborts the test with the given failure message.
 func (ts *TestScript) Fatalf(format string, args ...interface{}) {
 	fmt.Fprintf(&ts.log, "FAIL: %s:%d: %s\n", ts.file, ts.lineno, fmt.Sprintf(format, args...))
-	ts.t.FailNow()
+	// This should be caught by the defer inside the TestScript.runLine method.
+	// We do this rather than calling ts.t.FailNow directly because we want to
+	// be able to continue on error when Params.ContinueOnError is set.
+	panic(failNow)
 }
 
 // MkAbs interprets file relative to the test script's current directory
