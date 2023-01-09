@@ -209,8 +209,9 @@ func (tr *testRunner) run(runDir, filename string) error {
 	}
 
 	p := testscript.Params{
-		Dir:           runDir,
-		UpdateScripts: tr.update,
+		Dir:             runDir,
+		UpdateScripts:   tr.update,
+		ContinueOnError: tr.continueOnError,
 	}
 
 	if _, err := exec.LookPath("go"); err == nil {
@@ -278,8 +279,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 	}
 
 	r := &runT{
-		continueOnError: tr.continueOnError,
-		verbose:         tr.verbose,
+		verbose: tr.verbose,
 	}
 
 	func() {
@@ -347,9 +347,8 @@ func renderFilename(filename string) string {
 
 // runT implements testscript.T and is used in the call to testscript.Run
 type runT struct {
-	verbose         bool
-	continueOnError bool
-	failed          int32
+	verbose bool
+	failed  int32
 }
 
 func (r *runT) Skip(is ...interface{}) {
@@ -372,9 +371,7 @@ func (r *runT) Log(is ...interface{}) {
 
 func (r *runT) FailNow() {
 	atomic.StoreInt32(&r.failed, 1)
-	if !r.continueOnError {
-		panic(failedRun)
-	}
+	panic(failedRun)
 }
 
 func (r *runT) Failed() bool {
