@@ -375,6 +375,11 @@ type backgroundCmd struct {
 // setup sets up the test execution temporary directory and environment.
 // It returns the comment section of the txtar archive.
 func (ts *TestScript) setup() string {
+	defer catchFailNow(func() {
+		// There's been a failure in setup; fail immediately regardless
+		// of the ContinueOnError flag.
+		ts.t.FailNow()
+	})
 	ts.workdir = filepath.Join(ts.testTempDir, "script-"+ts.name)
 
 	// Establish a temporary directory in workdir, but use a prefix that ensures
@@ -575,19 +580,11 @@ func (ts *TestScript) run() {
 	}
 }
 
-var failNow = errors.New("fail now!")
-
 func (ts *TestScript) runLine(line string) (runOK bool) {
-	defer func() {
-		e := recover()
-		if e == nil {
-			return
-		}
-		if e != failNow {
-			panic(e)
-		}
+	defer catchFailNow(func() {
 		runOK = false
-	}()
+	})
+
 	// Parse input line. Ignore blanks entirely.
 	args := ts.parse(line)
 	if len(args) == 0 {
@@ -676,6 +673,21 @@ func (ts *TestScript) applyScriptUpdates() {
 		ts.t.Fatal("cannot update script: ", err)
 	}
 	ts.Logf("%s updated", ts.file)
+}
+
+var failNow = errors.New("fail now!")
+
+// catchFailNow catches any panic from Fatalf and calls
+// f if it did so. It must be called in a defer.
+func catchFailNow(f func()) {
+	e := recover()
+	if e == nil {
+		return
+	}
+	if e != failNow {
+		panic(e)
+	}
+	f()
 }
 
 // condition reports whether the given condition is satisfied.

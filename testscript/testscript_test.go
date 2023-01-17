@@ -135,6 +135,31 @@ func TestEnv(t *testing.T) {
 	}
 }
 
+func TestSetupFailure(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "foo.txt"), nil, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	ft := &fakeT{}
+	func() {
+		defer catchAbort()
+		RunT(ft, Params{
+			Dir: dir,
+			Setup: func(*Env) error {
+				return fmt.Errorf("some failure")
+			},
+		})
+	}()
+	if !ft.failed {
+		t.Fatal("test should have failed because of setup failure")
+	}
+
+	want := regexp.MustCompile(`^FAIL: .*: some failure\n$`)
+	if got := ft.log.String(); !want.MatchString(got) {
+		t.Fatalf("expected msg to match `%v`; got:\n%q", want, got)
+	}
+}
+
 func TestScripts(t *testing.T) {
 	// TODO set temp directory.
 	testDeferCount := 0
@@ -197,15 +222,9 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("testscript [-v] [-continue] [-update] [-explicit-exec] <dir>")
 				}
 				dir := fset.Arg(0)
-				t := &fakeT{ts: ts, verbose: *fVerbose}
+				t := &fakeT{verbose: *fVerbose}
 				func() {
-					defer func() {
-						if err := recover(); err != nil {
-							if err != errAbort {
-								panic(err)
-							}
-						}
-					}()
+					defer catchAbort()
 					RunT(t, Params{
 						Dir:                 ts.MkAbs(dir),
 						UpdateScripts:       *fUpdate,
@@ -219,13 +238,13 @@ func TestScripts(t *testing.T) {
 				}()
 				ts.stdout = strings.Replace(t.log.String(), ts.workdir, "$WORK", -1)
 				if neg {
-					if len(t.failMsgs) == 0 {
+					if !t.failed {
 						ts.Fatalf("testscript unexpectedly succeeded")
 					}
 					return
 				}
-				if len(t.failMsgs) > 0 {
-					ts.Fatalf("testscript unexpectedly failed with errors: %q", t.failMsgs)
+				if t.failed {
+					ts.Fatalf("testscript unexpectedly failed with errors: %q", &t.log)
 				}
 			},
 		},
@@ -310,24 +329,21 @@ func TestWorkdirRoot(t *testing.T) {
 func TestBadDir(t *testing.T) {
 	ft := new(fakeT)
 	func() {
-		defer func() {
-			if err := recover(); err != nil {
-				if err != errAbort {
-					panic(err)
-				}
-			}
-		}()
+		defer catchAbort()
 		RunT(ft, Params{
 			Dir: "thiswillnevermatch",
 		})
 	}()
-	wantCount := 1
-	if got := len(ft.failMsgs); got != wantCount {
-		t.Fatalf("expected %v fail message; got %v", wantCount, got)
+	want := regexp.MustCompile(`no txtar nor txt scripts found in dir thiswillnevermatch`)
+	if got := ft.log.String(); !want.MatchString(got) {
+		t.Fatalf("expected msg to match `%v`; got:\n%v", want, got)
 	}
-	wantMsg := regexp.MustCompile(`no txtar nor txt scripts found in dir thiswillnevermatch`)
-	if got := ft.failMsgs[0]; !wantMsg.MatchString(got) {
-		t.Fatalf("expected msg to match `%v`; got:\n%v", wantMsg, got)
+}
+
+// catchAbort catches the panic raised by fakeT.FailNow.
+func catchAbort() {
+	if err := recover(); err != nil && err != errAbort {
+		panic(err)
 	}
 }
 
@@ -398,11 +414,9 @@ func waitFile(ts *TestScript, neg bool, args []string) {
 }
 
 type fakeT struct {
-	ts       *TestScript
-	log      bytes.Buffer
-	failMsgs []string
-	verbose  bool
-	failed   bool
+	log     strings.Builder
+	verbose bool
+	failed  bool
 }
 
 var errAbort = errors.New("abort test")
@@ -412,9 +426,8 @@ func (t *fakeT) Skip(args ...interface{}) {
 }
 
 func (t *fakeT) Fatal(args ...interface{}) {
-	t.failed = true
-	t.failMsgs = append(t.failMsgs, fmt.Sprint(args...))
-	panic(errAbort)
+	t.Log(args...)
+	t.FailNow()
 }
 
 func (t *fakeT) Parallel() {}
@@ -424,7 +437,8 @@ func (t *fakeT) Log(args ...interface{}) {
 }
 
 func (t *fakeT) FailNow() {
-	t.Fatal("failed")
+	t.failed = true
+	panic(errAbort)
 }
 
 func (t *fakeT) Run(name string, f func(T)) {
