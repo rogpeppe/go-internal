@@ -244,7 +244,6 @@ func (x *Line) Span() (start, end Position) {
 //		"x"
 //		"y"
 //	)
-//
 type LineBlock struct {
 	Comments
 	Start  Position
