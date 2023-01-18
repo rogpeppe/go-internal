@@ -8,9 +8,9 @@
 // This allows interactive experimentation with the set of proxied modules.
 // For example:
 //
-// 	cd cmd/go
-// 	go test -proxy=localhost:1234 &
-// 	export GOPROXY=http://localhost:1234/mod
+//	cd cmd/go
+//	go test -proxy=localhost:1234 &
+//	export GOPROXY=http://localhost:1234/mod
 //
 // and then run go commands as usual.
 package main
