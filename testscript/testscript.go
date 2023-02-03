@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -29,6 +30,7 @@ import (
 	"time"
 
 	"github.com/rogpeppe/go-internal/imports"
+	"github.com/rogpeppe/go-internal/internal/misspell"
 	"github.com/rogpeppe/go-internal/internal/os/execpath"
 	"github.com/rogpeppe/go-internal/par"
 	"github.com/rogpeppe/go-internal/testenv"
@@ -669,7 +671,16 @@ func (ts *TestScript) runLine(line string) (runOK bool) {
 		cmd = ts.params.Cmds[args[0]]
 	}
 	if cmd == nil {
-		ts.Fatalf("unknown command %q", args[0])
+		// try to find spelling corrections. We arbitrarily limit the number of
+		// corrections, to not be too noisy.
+		switch c := ts.cmdSuggestions(args[0]); len(c) {
+		case 1:
+			ts.Fatalf("unknown command %q (did you mean %q?)", args[0], c[0])
+		case 2, 3, 4:
+			ts.Fatalf("unknown command %q (did you mean one of %q?)", args[0], c)
+		default:
+			ts.Fatalf("unknown command %q", args[0])
+		}
 	}
 	ts.callBuiltinCmd(args[0], func() {
 		cmd(ts, neg, args[1:])
@@ -692,6 +703,42 @@ func (ts *TestScript) callBuiltinCmd(cmd string, runCmd func()) {
 		}
 	}()
 	runCmd()
+}
+
+func (ts *TestScript) cmdSuggestions(name string) []string {
+	// special case: spell-correct `!cmd` to `! cmd`
+	if strings.HasPrefix(name, "!") {
+		if _, ok := scriptCmds[name[1:]]; ok {
+			return []string{"! " + name[1:]}
+		}
+		if _, ok := ts.params.Cmds[name[1:]]; ok {
+			return []string{"! " + name[1:]}
+		}
+	}
+	var candidates []string
+	for c := range scriptCmds {
+		if misspell.AlmostEqual(name, c) {
+			candidates = append(candidates, c)
+		}
+	}
+	for c := range ts.params.Cmds {
+		if misspell.AlmostEqual(name, c) {
+			candidates = append(candidates, c)
+		}
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+	// deduplicate candidates
+	// TODO: Use slices.Compact (and maybe slices.Sort) once we can use Go 1.21
+	sort.Strings(candidates)
+	out := candidates[:1]
+	for _, c := range candidates[1:] {
+		if out[len(out)-1] == c {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func (ts *TestScript) applyScriptUpdates() {
