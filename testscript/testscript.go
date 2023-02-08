@@ -152,11 +152,7 @@ type Params struct {
 	// $GOTMPDIR/go-test-script*, where $GOTMPDIR defaults to os.TempDir().
 	WorkdirRoot string
 
-	// IgnoreMissedCoverage specifies that if coverage information
-	// is being generated (with the -test.coverprofile flag) and a subcommand
-	// function passed to RunMain fails to generate coverage information
-	// (for example because the function invoked os.Exit), then the
-	// error will be ignored.
+	// Deprecated: this option is no longer used.
 	IgnoreMissedCoverage bool
 
 	// UpdateScripts specifies that if a `cmp` command fails and its second
@@ -427,7 +423,7 @@ func (ts *TestScript) setup() string {
 
 			// If we are collecting coverage profiles for merging into the main one,
 			// ensure the environment variable is forwarded to sub-processes.
-			"TESTSCRIPT_COVER_DIR=" + os.Getenv("TESTSCRIPT_COVER_DIR"),
+			"GOCOVERDIR=" + os.Getenv("GOCOVERDIR"),
 		},
 		WorkDir: ts.workdir,
 		Values:  make(map[interface{}]interface{}),
