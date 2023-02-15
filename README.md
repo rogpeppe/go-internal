@@ -10,6 +10,7 @@ Included are the following:
 - modfile: read and write `go.mod` files while preserving formatting and comments.
 - module: module paths and versions.
 - par: do work in parallel.
+- robustio: transparent retrying of failure-prone I/O functions on Windows.
 - semver: semantic version parsing.
 - testenv: information on the current testing environment.
 - testscript: script-based testing based on txtar files
