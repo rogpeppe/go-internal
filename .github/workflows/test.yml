@@ -16,7 +16,7 @@ jobs:
         - '1.19.x'
         os:
         - ubuntu-latest
-        - macos-latest
+        - macos-11
         - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,30 +38,3 @@ jobs:
 
         test -z "$(gofmt -d .)" || (gofmt -d . && false)
         test -z "$(git status --porcelain)" || (git status; git diff && false)
-
-  test-gotip:
-    runs-on: ubuntu-latest
-    continue-on-error: true # master breaks sometimes
-    steps:
-    - name: Install Go
-      env:
-        GO_COMMIT: 2cfbef438049fd4c3f73d1562773ad1f93900897 # 2022-06-09
-      run: |
-        cd $HOME
-        mkdir $HOME/gotip
-        cd $HOME/gotip
-
-        wget -O gotip.tar.gz https://go.googlesource.com/go/+archive/${GO_COMMIT}.tar.gz
-        tar -xf gotip.tar.gz
-        echo "devel go1.19-${GO_COMMIT}" >VERSION
-
-        cd src
-        ./make.bash
-        echo "GOROOT=$HOME/gotip" >>$GITHUB_ENV
-        echo "$HOME/gotip/bin" >>$GITHUB_PATH
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Test
-      run: |
-        go version
-        go test ./...
