@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/diff"
+	"github.com/rogpeppe/go-internal/diff"
 	"github.com/rogpeppe/go-internal/txtar"
 )
 
@@ -151,12 +151,9 @@ func (ts *TestScript) doCmdCmp(neg bool, args []string, env bool) {
 		return
 	}
 
-	var sb strings.Builder
-	if err := diff.Text(name1, name2, text1, text2, &sb); err != nil {
-		ts.Check(err)
-	}
+	unifiedDiff := diff.Diff(name1, []byte(text1), name2, []byte(text2))
 
-	ts.Logf("%s", sb.String())
+	ts.Logf("%s", unifiedDiff)
 	ts.Fatalf("%s and %s differ", name1, name2)
 }
 
