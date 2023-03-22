@@ -141,16 +141,6 @@ func (ts *TestScript) doCmdCmp(neg bool, args []string, env bool) {
 		// update the script.
 	}
 
-	// pkg/diff is quadratic at the moment.
-	// If the product of the number of lines in the inputs is too large,
-	// don't call pkg.Diff at all as it might take tons of memory or time.
-	// We found one million to be reasonable for an average laptop.
-	const maxLineDiff = 1_000_000
-	if strings.Count(text1, "\n")*strings.Count(text2, "\n") > maxLineDiff {
-		ts.Fatalf("large files %s and %s differ", name1, name2)
-		return
-	}
-
 	unifiedDiff := diff.Diff(name1, []byte(text1), name2, []byte(text2))
 
 	ts.Logf("%s", unifiedDiff)
