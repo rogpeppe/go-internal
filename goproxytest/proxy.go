@@ -34,10 +34,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rogpeppe/go-internal/module"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
+	"golang.org/x/tools/txtar"
+
 	"github.com/rogpeppe/go-internal/par"
-	"github.com/rogpeppe/go-internal/semver"
-	"github.com/rogpeppe/go-internal/txtar"
 )
 
 type Server struct {
@@ -110,12 +111,12 @@ func (srv *Server) readModList() error {
 			continue
 		}
 		encPath := strings.Replace(name[:i], "_", "/", -1)
-		path, err := module.DecodePath(encPath)
+		path, err := module.UnescapePath(encPath)
 		if err != nil {
 			return fmt.Errorf("cannot decode module path in %q: %v", name, err)
 		}
 		encVers := name[i+1:]
-		vers, err := module.DecodeVersion(encVers)
+		vers, err := module.UnescapeVersion(encVers)
 		if err != nil {
 			return fmt.Errorf("cannot decode module version in %q: %v", name, err)
 		}
@@ -138,7 +139,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	enc, file := path[:i], path[i+len("/@v/"):]
-	path, err := module.DecodePath(enc)
+	path, err := module.UnescapePath(enc)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 		http.NotFound(w, r)
@@ -166,7 +167,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	encVers, ext := file[:i], file[i+1:]
-	vers, err := module.DecodeVersion(encVers)
+	vers, err := module.UnescapeVersion(encVers)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 		http.NotFound(w, r)
@@ -274,12 +275,12 @@ func (srv *Server) findHash(m module.Version) string {
 }
 
 func (srv *Server) readArchive(path, vers string) *txtar.Archive {
-	enc, err := module.EncodePath(path)
+	enc, err := module.EscapePath(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
 		return nil
 	}
-	encVers, err := module.EncodeVersion(vers)
+	encVers, err := module.EscapeVersion(vers)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
 		return nil

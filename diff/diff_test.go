@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rogpeppe/go-internal/txtar"
+	"golang.org/x/tools/txtar"
 )
 
 func clean(text []byte) []byte {

@@ -4,6 +4,8 @@
 // in that package.
 //
 // See that package for documentation on everything else.
+//
+// Deprecated: use [golang.org/x/mod/module] instead.
 package module
 
 import "golang.org/x/mod/module"
