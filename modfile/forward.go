@@ -4,6 +4,8 @@
 // apart from the ParseGopkgIn function which doesn't exist there.
 //
 // See that package for documentation.
+//
+// Deprecated: use [golang.org/x/mod/modfile] instead.
 package modfile
 
 import (

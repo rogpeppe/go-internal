@@ -28,8 +28,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rogpeppe/go-internal/module"
-	"github.com/rogpeppe/go-internal/txtar"
+	"golang.org/x/mod/module"
+	"golang.org/x/tools/txtar"
 )
 
 func usage() {
@@ -123,7 +123,7 @@ func main1() int {
 		}
 		path, vers, dir := f[0], f[1], f[2]
 
-		encpath, err := module.EncodePath(path)
+		encpath, err := module.EscapePath(path)
 		if err != nil {
 			log.Printf("failed to encode path %q: %v", path, err)
 			continue

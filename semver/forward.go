@@ -1,5 +1,7 @@
 // Package semver is a thin forwarding layer on top of
 // [golang.org/x/mod/semver]. See that package for documentation.
+//
+// Deprecated: use [golang.org/x/mod/semver] instead.
 package semver
 
 import "golang.org/x/mod/semver"
