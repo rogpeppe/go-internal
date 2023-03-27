@@ -5,13 +5,9 @@
 package modfile
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/internal/textutil"
@@ -21,50 +17,6 @@ import (
 func exists(name string) bool {
 	_, err := os.Stat(name)
 	return err == nil
-}
-
-// Test that reading and then writing the golden files
-// does not change their output.
-func TestPrintGolden(t *testing.T) {
-	outs, err := filepath.Glob("testdata/*.golden")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, out := range outs {
-		testPrint(t, out, out)
-	}
-}
-
-// testPrint is a helper for testing the printer.
-// It reads the file named in, reformats it, and compares
-// the result to the file named out.
-func testPrint(t *testing.T, in, out string) {
-	data, err := ioutil.ReadFile(in)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	golden, err := ioutil.ReadFile(out)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	base := "testdata/" + filepath.Base(in)
-	f, err := parse(in, data)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	ndata := Format(f)
-
-	if !bytes.Equal(ndata, golden) {
-		t.Errorf("formatted %s incorrectly: diff shows -golden, +ours", base)
-		tdiff(t, string(golden), string(ndata))
-		return
-	}
 }
 
 func TestParseLax(t *testing.T) {
@@ -79,89 +31,6 @@ func TestParseLax(t *testing.T) {
 	_, err := ParseLax("file", badFile, nil)
 	if err != nil {
 		t.Fatalf("ParseLax did not ignore irrelevant errors: %v", err)
-	}
-}
-
-// Test that when files in the testdata directory are parsed
-// and printed and parsed again, we get the same parse tree
-// both times.
-func TestPrintParse(t *testing.T) {
-	outs, err := filepath.Glob("testdata/*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, out := range outs {
-		data, err := ioutil.ReadFile(out)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		base := "testdata/" + filepath.Base(out)
-		f, err := parse(base, data)
-		if err != nil {
-			t.Errorf("parsing original: %v", err)
-			continue
-		}
-
-		ndata := Format(f)
-		f2, err := parse(base, ndata)
-		if err != nil {
-			t.Errorf("parsing reformatted: %v", err)
-			continue
-		}
-
-		eq := eqchecker{file: base}
-		if err := eq.check(f, f2); err != nil {
-			t.Errorf("not equal (parse/Format/parse): %v", err)
-		}
-
-		pf1, err := Parse(base, data, nil)
-		if err != nil {
-			switch base {
-			case "testdata/replace2.in", "testdata/gopkg.in.golden":
-				t.Errorf("should parse %v: %v", base, err)
-			}
-		}
-		if err == nil {
-			pf2, err := Parse(base, ndata, nil)
-			if err != nil {
-				t.Errorf("Parsing reformatted: %v", err)
-				continue
-			}
-			eq := eqchecker{file: base}
-			if err := eq.check(pf1, pf2); err != nil {
-				t.Errorf("not equal (parse/Format/Parse): %v", err)
-			}
-
-			ndata2, err := pf1.Format()
-			if err != nil {
-				t.Errorf("reformat: %v", err)
-			}
-			pf3, err := Parse(base, ndata2, nil)
-			if err != nil {
-				t.Errorf("Parsing reformatted2: %v", err)
-				continue
-			}
-			eq = eqchecker{file: base}
-			if err := eq.check(pf1, pf3); err != nil {
-				t.Errorf("not equal (Parse/Format/Parse): %v", err)
-			}
-			ndata = ndata2
-		}
-
-		if strings.HasSuffix(out, ".in") {
-			golden, err := ioutil.ReadFile(strings.TrimSuffix(out, ".in") + ".golden")
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			if !bytes.Equal(ndata, golden) {
-				t.Errorf("formatted %s incorrectly: diff shows -golden, +ours", base)
-				tdiff(t, string(golden), string(ndata))
-				return
-			}
-		}
 	}
 }
 
