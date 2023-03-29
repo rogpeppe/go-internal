@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"fortio.org/testscript/internal/os/execpath"
-	"fortio.org/testscript/testscript"
+	"fortio.org/testscript"
 )
 
 func TestMain(m *testing.M) {

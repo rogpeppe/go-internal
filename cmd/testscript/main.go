@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"fortio.org/testscript/testscript"
+	"fortio.org/testscript"
 	"golang.org/x/tools/txtar"
 )
 

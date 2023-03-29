@@ -1,6 +1,6 @@
 module fortio.org/testscript
 
-go 1.19
+go 1.20
 
 require (
 	golang.org/x/mod v0.9.0
