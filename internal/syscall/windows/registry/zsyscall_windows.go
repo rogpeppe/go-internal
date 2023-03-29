@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/rogpeppe/go-internal/internal/syscall/windows/sysdll"
+	"fortio.org/testscript/internal/syscall/windows/sysdll"
 )
 
 var _ unsafe.Pointer

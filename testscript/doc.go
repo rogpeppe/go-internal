@@ -211,12 +211,6 @@ The predefined commands are:
   - symlink file -> target
     Create file as a symlink to target. The -> (like in ls -l output) is required.
 
-  - unquote file...
-    Rewrite each file by replacing any leading ">" characters from
-    each line. This enables a file to contain substrings that look like
-    txtar file markers.
-    See also https://godoc.org/github.com/rogpeppe/go-internal/txtar#Unquote
-
   - wait [command]
     Wait for all 'exec' and 'go' commands started in the background (with the '&'
     token) to exit, and display success or failure status for them.

@@ -1,5 +1,5 @@
 # should support skip
-unquote file.txt
+
 
 # stdin
 stdin file.txt
@@ -11,4 +11,4 @@ stderr 'error running <stdin> in'
 stderr 'error running file.txt in'
 
 -- file.txt --
->exec false
+exec false

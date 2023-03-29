@@ -11,7 +11,7 @@ import (
 	"io/fs"
 	"syscall"
 
-	"github.com/rogpeppe/go-internal/internal/syscall/windows"
+	"fortio.org/testscript/internal/syscall/windows"
 )
 
 type lockType uint32

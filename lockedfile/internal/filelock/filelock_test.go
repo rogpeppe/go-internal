@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rogpeppe/go-internal/lockedfile/internal/filelock"
+	"fortio.org/testscript/lockedfile/internal/filelock"
 )
 
 func lock(t *testing.T, f *os.File) {

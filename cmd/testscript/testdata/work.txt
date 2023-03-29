@@ -6,7 +6,7 @@
 # the same basename, ensuring that the naming of the directories
 # within the working directory.
 
-unquote file.txt dir/file.txt
+
 
 testscript -v -work file.txt dir/file.txt
 stderr '^temporary work directory: \Q'$WORK'\E[/\\]\.tmp[/\\]'
@@ -16,6 +16,6 @@ expandone $WORK/.tmp/testscript*/file.txt/script.txtar
 expandone $WORK/.tmp/testscript*/file.txt1/script.txtar
 
 -- file.txt --
->exec true
+exec true
 -- dir/file.txt --
->exec true
+exec true

@@ -72,24 +72,6 @@ func TestMain(m *testing.M) {
 	}))
 }
 
-func TestCRLFInput(t *testing.T) {
-	td, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("failed to create TempDir: %v", err)
-	}
-	defer func() {
-		os.RemoveAll(td)
-	}()
-	tf := filepath.Join(td, "script.txt")
-	contents := []byte("exists output.txt\r\n-- output.txt --\r\noutput contents")
-	if err := ioutil.WriteFile(tf, contents, 0o644); err != nil {
-		t.Fatalf("failed to write to %v: %v", tf, err)
-	}
-	t.Run("_", func(t *testing.T) {
-		Run(t, Params{Dir: td})
-	})
-}
-
 func TestEnv(t *testing.T) {
 	e := &Env{
 		Vars: []string{

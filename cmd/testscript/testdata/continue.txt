@@ -1,5 +1,5 @@
 # should support -continue
-unquote file.txt
+
 
 # Running with continue, the testscript command itself
 # should fail, but we should see the results of executing
@@ -10,7 +10,7 @@ stdout 'no match for `banana` found in in'
 stdout 'grep apple in'
 
 -- file.txt --
->grep banana in
->grep apple in
->-- in --
->apple
+grep banana in
+grep apple in
+-- in --
+apple

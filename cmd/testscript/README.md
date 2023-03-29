@@ -1,5 +1,5 @@
 ```
-The testscript command runs github.com/rogpeppe/go-internal/testscript scripts
+The testscript command runs fortio.org/testscript/testscript scripts
 in a fresh temporary work directory tree.
 
 Usage:
@@ -9,15 +9,15 @@ The testscript command is designed to make it easy to create self-contained
 reproductions of command sequences.
 
 Each file is opened as a script and run as described in the documentation for
-github.com/rogpeppe/go-internal/testscript. The special filename "-" is
+fortio.org/testscript/testscript. The special filename "-" is
 interpreted as the standard input.
 
 As a special case, supporting files/directories in the .gomodproxy subdirectory
-will be served via a github.com/rogpeppe/go-internal/goproxytest server which
+will be served via a fortio.org/testscript/goproxytest server which
 is available to each script via the GOPROXY environment variable. The contents
 of the .gomodproxy subdirectory are not available to the script except via the
 proxy server. See the documentation for
-github.com/rogpeppe/go-internal/goproxytest for details on the format of these
+fortio.org/testscript/goproxytest for details on the format of these
 files/directories.
 
 Environment variables can be passed through to each script with the -e flag,

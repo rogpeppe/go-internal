@@ -1,4 +1,4 @@
-module github.com/rogpeppe/go-internal
+module fortio.org/testscript
 
 go 1.19
 

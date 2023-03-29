@@ -10,22 +10,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 
-	"github.com/rogpeppe/go-internal/goproxytest"
-	"github.com/rogpeppe/go-internal/gotooltest"
-	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/rogpeppe/go-internal/txtar"
-)
-
-const (
-	// goModProxyDir is the special subdirectory in a txtar script's supporting files
-	// within which we expect to find github.com/rogpeppe/go-internal/goproxytest
-	// directories.
-	goModProxyDir = ".gomodproxy"
+	"fortio.org/testscript/testscript"
+	"golang.org/x/tools/txtar"
 )
 
 type envVarsFlag struct {
@@ -164,12 +154,6 @@ func (tr *testRunner) run(runDir, filename string) error {
 	var ar *txtar.Archive
 	var err error
 
-	mods := filepath.Join(runDir, goModProxyDir)
-
-	if err := os.MkdirAll(mods, 0o777); err != nil {
-		return fmt.Errorf("failed to create goModProxy dir: %v", err)
-	}
-
 	if filename == "-" {
 		byts, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
@@ -184,23 +168,10 @@ func (tr *testRunner) run(runDir, filename string) error {
 		return fmt.Errorf("failed to txtar parse %v: %v", renderFilename(filename), err)
 	}
 
-	var script, gomodProxy txtar.Archive
+	var script txtar.Archive
 	script.Comment = ar.Comment
 
-	for _, f := range ar.Files {
-		fp := filepath.Clean(filepath.FromSlash(f.Name))
-		parts := strings.Split(fp, string(os.PathSeparator))
-
-		if len(parts) > 1 && parts[0] == goModProxyDir {
-			gomodProxy.Files = append(gomodProxy.Files, f)
-		} else {
-			script.Files = append(script.Files, f)
-		}
-	}
-
-	if txtar.Write(&gomodProxy, runDir); err != nil {
-		return fmt.Errorf("failed to write .gomodproxy files: %v", err)
-	}
+	script.Files = append(script.Files, ar.Files...)
 
 	scriptFile := filepath.Join(runDir, "script.txtar")
 
@@ -212,12 +183,6 @@ func (tr *testRunner) run(runDir, filename string) error {
 		Dir:             runDir,
 		UpdateScripts:   tr.update,
 		ContinueOnError: tr.continueOnError,
-	}
-
-	if _, err := exec.LookPath("go"); err == nil {
-		if err := gotooltest.Setup(&p); err != nil {
-			return fmt.Errorf("failed to setup go tool for %v run: %v", renderFilename(filename), err)
-		}
 	}
 
 	addSetup := func(f func(env *testscript.Env) error) {
@@ -235,24 +200,6 @@ func (tr *testRunner) run(runDir, filename string) error {
 	if tr.testWork {
 		addSetup(func(env *testscript.Env) error {
 			fmt.Fprintf(os.Stderr, "temporary work directory for %s: %s\n", renderFilename(filename), env.WorkDir)
-			return nil
-		})
-	}
-
-	if len(gomodProxy.Files) > 0 {
-		srv, err := goproxytest.NewServer(mods, "")
-		if err != nil {
-			return fmt.Errorf("cannot start proxy for %v: %v", renderFilename(filename), err)
-		}
-		defer srv.Close()
-
-		addSetup(func(env *testscript.Env) error {
-			// Add GOPROXY after calling the original setup
-			// so that it overrides any GOPROXY set there.
-			env.Vars = append(env.Vars,
-				"GOPROXY="+srv.URL,
-				"GONOSUMDB=*",
-			)
 			return nil
 		})
 	}

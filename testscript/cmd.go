@@ -16,8 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rogpeppe/go-internal/diff"
-	"github.com/rogpeppe/go-internal/txtar"
+	"fortio.org/testscript/diff"
 )
 
 // scriptCmds are the script command implementations.
@@ -44,7 +43,6 @@ var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"stop":     (*TestScript).cmdStop,
 	"symlink":  (*TestScript).cmdSymlink,
 	"unix2dos": (*TestScript).cmdUNIX2DOS,
-	"unquote":  (*TestScript).cmdUnquote,
 	"wait":     (*TestScript).cmdWait,
 }
 
@@ -320,22 +318,6 @@ func (ts *TestScript) cmdMv(neg bool, args []string) {
 		ts.Fatalf("usage: mv old new")
 	}
 	ts.Check(os.Rename(ts.MkAbs(args[0]), ts.MkAbs(args[1])))
-}
-
-// unquote unquotes files.
-func (ts *TestScript) cmdUnquote(neg bool, args []string) {
-	if neg {
-		ts.Fatalf("unsupported: ! unquote")
-	}
-	for _, arg := range args {
-		file := ts.MkAbs(arg)
-		data, err := ioutil.ReadFile(file)
-		ts.Check(err)
-		data, err = txtar.Unquote(data)
-		ts.Check(err)
-		err = ioutil.WriteFile(file, data, 0o666)
-		ts.Check(err)
-	}
 }
 
 // rm removes files or directories.

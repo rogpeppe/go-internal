@@ -1,5 +1,5 @@
 # should support skip
-unquote file.txt
+
 
 # We can't just set PATH to empty because we need the part of it that
 # contains the command names, so use a special builtin instead.
@@ -10,4 +10,4 @@ stdout 'unknown command "go"'
 stderr 'error running file.txt in'
 
 -- file.txt --
->go env
+go env

@@ -27,11 +27,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rogpeppe/go-internal/imports"
-	"github.com/rogpeppe/go-internal/internal/os/execpath"
-	"github.com/rogpeppe/go-internal/par"
-	"github.com/rogpeppe/go-internal/testenv"
-	"github.com/rogpeppe/go-internal/txtar"
+	"fortio.org/testscript/imports"
+	"fortio.org/testscript/internal/os/execpath"
+	"fortio.org/testscript/par"
+	"fortio.org/testscript/testenv"
+	"golang.org/x/tools/txtar"
 )
 
 var goVersionRegex = regexp.MustCompile(`^go([1-9][0-9]*)\.([1-9][0-9]*)$`)
@@ -675,14 +675,6 @@ func (ts *TestScript) applyScriptUpdates() {
 				continue
 			}
 			data := []byte(content)
-			if txtar.NeedsQuote(data) {
-				data1, err := txtar.Quote(data)
-				if err != nil {
-					ts.Fatalf("cannot update script file %q: %v", f.Name, err)
-					continue
-				}
-				data = data1
-			}
 			f.Data = data
 			found = true
 		}

@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/rogpeppe/go-internal/testenv"
+	"fortio.org/testscript/testenv"
 )
 
 func TestScan(t *testing.T) {

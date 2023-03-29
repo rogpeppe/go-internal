@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rogpeppe/go-internal/lockedfile"
+	"fortio.org/testscript/lockedfile"
 )
 
 func mustTempDir(t *testing.T) (dir string, remove func()) {

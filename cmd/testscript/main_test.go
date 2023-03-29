@@ -13,9 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rogpeppe/go-internal/gotooltest"
-	"github.com/rogpeppe/go-internal/internal/os/execpath"
-	"github.com/rogpeppe/go-internal/testscript"
+	"fortio.org/testscript/internal/os/execpath"
+	"fortio.org/testscript/testscript"
 )
 
 func TestMain(m *testing.M) {
@@ -56,9 +55,6 @@ func TestScripts(t *testing.T) {
 			"setfilegoproxy": setfilegoproxy,
 			"expandone":      expandone,
 		},
-	}
-	if err := gotooltest.Setup(&p); err != nil {
-		t.Fatal(err)
 	}
 	testscript.Run(t, p)
 }
