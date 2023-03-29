@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"fortio.org/testscript/internal/os/execpath"
 	"fortio.org/testscript"
+	"fortio.org/testscript/internal/os/execpath"
 )
 
 func TestMain(m *testing.M) {
