@@ -5,5 +5,5 @@ stdout 'go version'
 ! stderr .+
 
 -- file.txt --
-go version
+exec go version
 skip
