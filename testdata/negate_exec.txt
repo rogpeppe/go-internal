@@ -1,0 +1,5 @@
+[!exec:false] skip
+
+!exec false
+!stderr '.+'
+!stdout '.+'
