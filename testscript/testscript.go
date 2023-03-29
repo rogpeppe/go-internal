@@ -643,11 +643,15 @@ func (ts *TestScript) runLine(line string) (runOK bool) {
 	// Command prefix ! means negate the expectations about this command:
 	// go command should fail, match should not be found, etc.
 	neg := false
-	if args[0] == "!" {
+	if strings.HasPrefix(args[0], "!") {
 		neg = true
-		args = args[1:]
-		if len(args) == 0 {
-			ts.Fatalf("! on line by itself")
+		if len(args[0]) == 1 {
+			args = args[1:]
+			if len(args) == 0 {
+				ts.Fatalf("! on line by itself")
+			}
+		} else {
+			args[0] = args[0][1:]
 		}
 	}
 
