@@ -788,6 +788,18 @@ func (ts *TestScript) Check(err error) {
 	}
 }
 
+// SetStdout updates the last stdout.  This is typically used by commands
+// declared via Params.Cmds.
+func (ts *TestScript) SetStdout(s string) {
+	ts.stdout = s
+}
+
+// SetStderr updates the last stderr.  This is typically used by commands
+// declared via Params.Cmds.
+func (ts *TestScript) SetStderr(s string) {
+	ts.stderr = s
+}
+
 // Logf appends the given formatted message to the test log transcript.
 func (ts *TestScript) Logf(format string, args ...interface{}) {
 	format = strings.TrimSuffix(format, "\n")

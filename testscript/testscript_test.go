@@ -249,6 +249,12 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("testscript unexpectedly failed with errors: %q", &t.log)
 				}
 			},
+			"echoStdout": func(ts *TestScript, neg bool, args []string) {
+				ts.SetStdout(strings.Join(args, " "))
+			},
+			"echoStderr": func(ts *TestScript, neg bool, args []string) {
+				ts.SetStderr(strings.Join(args, " "))
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := ioutil.ReadDir(env.WorkDir)

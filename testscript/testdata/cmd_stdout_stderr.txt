@@ -1,0 +1,15 @@
+# Print to stdout via a TestMain cmd
+fprintargs stdout hello world from fprintargs
+stdout 'hello world from fprintargs'
+
+# Verify that we can write to stdout via a Params.Cmds cmd
+echoStdout hello world from echoStdout
+stdout 'hello world from echoStdout'
+
+# Print to stderr via a TestMain cmd
+fprintargs stderr the answer is 42 from fprintargs
+stderr 'the answer is 42 from fprintargs'
+
+# Verify that we can write to stderr via a Params.Cmds cmd
+echoStderr the answer is 42 from echoStderr
+stderr 'the answer is 42 from echoStderr'
