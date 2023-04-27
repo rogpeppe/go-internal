@@ -216,11 +216,14 @@ func TestScripts(t *testing.T) {
 						Cmds: map[string]func(ts *TestScript, neg bool, args []string){
 							"some-param-cmd": func(ts *TestScript, neg bool, args []string) {
 							},
+							"echoandexit": echoandexit,
 						},
 						ContinueOnError: *fContinue,
 					})
 				}()
-				ts.stdout = strings.Replace(t.log.String(), ts.workdir, "$WORK", -1)
+				stdout := t.log.String()
+				stdout = strings.ReplaceAll(stdout, ts.workdir, "$WORK")
+				fmt.Fprint(ts.Stdout(), stdout)
 				if neg {
 					if !t.failed {
 						ts.Fatalf("testscript unexpectedly succeeded")
@@ -231,6 +234,7 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("testscript unexpectedly failed with errors: %q", &t.log)
 				}
 			},
+			"echoandexit": echoandexit,
 		},
 		Setup: func(env *Env) error {
 			infos, err := ioutil.ReadDir(env.WorkDir)
@@ -254,6 +258,33 @@ func TestScripts(t *testing.T) {
 		t.Fatalf("defer mismatch; got %d want 0", testDeferCount)
 	}
 	// TODO check that the temp directory has been removed.
+}
+
+func echoandexit(ts *TestScript, neg bool, args []string) {
+	// Takes at least one argument
+	//
+	// args[0] - int that indicates the exit code of the command
+	// args[1] - the string to echo to stdout if non-empty
+	// args[2] - the string to echo to stderr if non-empty
+	if len(args) == 0 || len(args) > 3 {
+		ts.Fatalf("echoandexit takes at least one and at most three arguments")
+	}
+	if neg {
+		ts.Fatalf("neg means nothing for echoandexit")
+	}
+	exitCode, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		ts.Fatalf("failed to parse exit code from %q: %v", args[0], err)
+	}
+	if len(args) > 1 && args[1] != "" {
+		fmt.Fprint(ts.Stdout(), args[1])
+	}
+	if len(args) > 2 && args[2] != "" {
+		fmt.Fprint(ts.Stderr(), args[2])
+	}
+	if exitCode != 0 {
+		ts.Fatalf("told to exit with code %d", exitCode)
+	}
 }
 
 // TestTestwork tests that using the flag -testwork will make sure the work dir isn't removed
