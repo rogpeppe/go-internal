@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -36,12 +37,30 @@ var (
 
 // initGoEnv initialises goEnv. It should only be called using goEnv.once.Do,
 // as in Setup.
-func initGoEnv() error {
-	var err error
+//
+// Run all of these probe commands in a temporary directory, so as not to make
+// any assumptions about the caller's working directory.
+func initGoEnv() (err error) {
+	td, err := os.MkdirTemp("", "gotooltest-initGoEnv")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory for go command tests: %w", err)
+	}
+	defer func() {
+		if rerr := os.RemoveAll(td); rerr != nil && err == nil {
+			err = fmt.Errorf("failed to remove temporary directory for go command tests: %w", rerr)
+		}
+	}()
+
+	// Write a temporary go.mod file in td. This ensures that we create
+	// a porcelain environment in which to run these probe commands.
+	if err := os.WriteFile(filepath.Join(td, "go.mod"), []byte("module gotooltest"), 0600); err != nil {
+		return fmt.Errorf("failed to write temporary go.mod file: %w", err)
+	}
 
 	run := func(args ...string) (*bytes.Buffer, *bytes.Buffer, error) {
 		var stdout, stderr bytes.Buffer
 		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = td
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		return &stdout, &stderr, cmd.Run()

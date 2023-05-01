@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package renameio writes files atomically by renaming temporary files.
+//
+// Deprecated: Use [github.com/google/renameio/v2] instead.
 package renameio
 
 import (

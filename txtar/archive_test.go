@@ -44,7 +44,7 @@ hello world`,
 	},
 	// Test CRLF input
 	{
-		name: "basic",
+		name: "basicCRLF",
 		text: "blah\r\n-- hello --\r\nhello\r\n",
 		parsed: &Archive{
 			Comment: []byte("blah\r\n"),

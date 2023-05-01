@@ -13,8 +13,7 @@ unquote withproxy.txt
 testscript -v noproxy.txt
 stdout ^BANANA=$
 stdout '^GOPATH=\$WORK[/\\]\.gopath'$
-[!go1.13] stdout ^GOPROXY=$
-[go1.13] stdout ^GOPROXY=https://proxy.golang.org,direct$
+stdout ^GOPROXY=https://proxy.golang.org,direct$
 ! stderr .+
 
 env BANANA=banana
@@ -26,8 +25,7 @@ env GOPROXY=
 testscript -v noproxy.txt
 stdout ^BANANA=$
 stdout '^GOPATH=\$WORK[/\\]\.gopath'$
-[!go1.13] stdout ^GOPROXY=$
-[go1.13] stdout ^GOPROXY=https://proxy.golang.org,direct$
+stdout ^GOPROXY=https://proxy.golang.org,direct$
 ! stderr .+
 
 # no GOPROXY, no pass-through, with proxy
