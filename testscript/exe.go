@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // TestingM is implemented by *testing.M. It's defined as an interface
@@ -97,6 +98,14 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 				ts.cmdExec(neg, append([]string{name}, args...))
 			}
 		}
+
+		if runtime.GOOS == "darwin" {
+			// There seem to be an issue with os.Link on newer versions of macOS.
+			// Wait a little to make sure the test binaries are ready.
+			// See issue #200.
+			time.Sleep(200 * time.Millisecond)
+		}
+
 		return m.Run()
 	}
 	// The command being registered is being invoked, so run it, then exit.
