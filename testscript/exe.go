@@ -121,8 +121,9 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 // unix-like setups. Note that "go test" also places test binaries in the
 // system's temporary directory, like we do. We don't use hard links on Windows,
 // as that can lead to "access denied" errors when removing.
+// We also currently don't use hard links on macOS, see issue #200.
 func copyBinary(from, to string) error {
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
 		if err := os.Link(from, to); err == nil {
 			return nil
 		}
