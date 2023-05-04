@@ -123,7 +123,10 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 // as that can lead to "access denied" errors when removing.
 func copyBinary(from, to string) error {
 	if runtime.GOOS != "windows" {
-		if err := os.Link(from, to); err == nil {
+		// Note: We used to use os.Link here, but there were
+		// "signal: killed" unexpected command failure type of errors on newer MacOS versions.
+		// Testing this show that os.Symlink works on MacOS without the above issue.
+		if err := os.Symlink(from, to); err == nil {
 			return nil
 		}
 	}
