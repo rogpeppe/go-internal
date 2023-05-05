@@ -122,10 +122,8 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 // system's temporary directory, like we do. We don't use hard links on Windows,
 // as that can lead to "access denied" errors when removing.
 func copyBinary(from, to string) error {
-	if runtime.GOOS != "windows" {
-		if err := os.Link(from, to); err == nil {
-			return nil
-		}
+	if err := cloneFile(from, to); err == nil {
+		return nil
 	}
 	writer, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE, 0o777)
 	if err != nil {
