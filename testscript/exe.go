@@ -117,10 +117,9 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 // Second, symlinks might not be available on some environments, so we have to
 // implement a "full copy" fallback anyway.
 //
-// However, we do try to use a hard link, since that will probably work on most
+// However, we do try to use cloneFile, since that will probably work on most
 // unix-like setups. Note that "go test" also places test binaries in the
-// system's temporary directory, like we do. We don't use hard links on Windows,
-// as that can lead to "access denied" errors when removing.
+// system's temporary directory, like we do.
 func copyBinary(from, to string) error {
 	if err := cloneFile(from, to); err == nil {
 		return nil
