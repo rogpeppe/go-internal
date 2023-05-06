@@ -5,7 +5,7 @@ package testscript
 
 import "os"
 
-// cloneFile creates to as a hard link to the from file.
+// cloneFile makes a clone of a file via a hard link.
 func cloneFile(from, to string) error {
 	return os.Link(from, to)
 }
