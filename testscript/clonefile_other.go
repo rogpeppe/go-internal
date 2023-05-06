@@ -5,7 +5,9 @@ package testscript
 
 import "fmt"
 
-// We don't want to use hard links on Windows, as that can lead to "access denied" errors when removing.
+// cloneFile does not attempt anything on Windows, as hard links on it have
+// led to "access denied" errors when deleting files at the end of a test.
+// We haven't tested platforms like plan9 or wasm/wasi.
 func cloneFile(from, to string) error {
 	return fmt.Errorf("unavailable")
 }
