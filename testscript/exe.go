@@ -139,37 +139,3 @@ func copyBinary(from, to string) error {
 	_, err = io.Copy(writer, reader)
 	return err
 }
-
-type nopTestDeps struct{}
-
-func (nopTestDeps) MatchString(pat, str string) (result bool, err error) {
-	return false, nil
-}
-
-func (nopTestDeps) StartCPUProfile(w io.Writer) error {
-	return nil
-}
-
-func (nopTestDeps) StopCPUProfile() {}
-
-func (nopTestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
-	return nil
-}
-
-func (nopTestDeps) ImportPath() string {
-	return ""
-}
-func (nopTestDeps) StartTestLog(w io.Writer) {}
-
-func (nopTestDeps) StopTestLog() error {
-	return nil
-}
-
-// Note: WriteHeapProfile is needed for Go 1.10 but not Go 1.11.
-func (nopTestDeps) WriteHeapProfile(io.Writer) error {
-	// Not needed for Go 1.10.
-	return nil
-}
-
-// Note: SetPanicOnExit0 was added in Go 1.16.
-func (nopTestDeps) SetPanicOnExit0(bool) {}

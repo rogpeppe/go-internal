@@ -172,12 +172,3 @@ func (e0 *environ) get(name string) string {
 	}
 	return ""
 }
-
-func (e *environ) set(name, val string) {
-	*e = append(*e, name+"="+val)
-}
-
-func (e *environ) unset(name string) {
-	// TODO actually remove the name from the environment.
-	e.set(name, "")
-}
