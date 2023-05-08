@@ -30,11 +30,11 @@ The most popular package here is the [testscript](https://pkg.go.dev/github.com/
  * Provides a shell-like test environment that is very nicely tuned for testing Go CLI commands.
  * Extracted from the core Go team's internal testscript package ([cmd/go/internal/script](https://github.com/golang/go/tree/master/src/cmd/go/internal/script)),
  which is [heavily used](https://github.com/golang/go/tree/master/src/cmd/go/testdata/script) to test the `go` command.
- * Allows patterns for checking stderr/stdout, command pass/fail assertions, and so on.
+ * Supports patterns for checking stderr/stdout, command pass/fail assertions, and so on.
  * Integrates well with `go test`, including coverage support.
  * Inputs and sample output files can use the simple [txtar](https://pkg.go.dev/golang.org/x/tools/txtar)
  text archive format, also used by the Go playground.
- * Supports [automatically updating](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript#Params)
+ * Allows [automatically updating](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript#Params)
  golden files.
  * Built-in support for Go concepts like build tags.
  * Accompanied by a [testscript](https://github.com/rogpeppe/go-internal/tree/master/cmd/testscript) command
