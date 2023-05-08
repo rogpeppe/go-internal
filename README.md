@@ -32,11 +32,11 @@ The most popular package here is the [testscript](https://pkg.go.dev/github.com/
  which is [heavily used](https://github.com/golang/go/tree/master/src/cmd/go/testdata/script) to test the `go` command.
  * Allows patterns for checking stderr/stdout, command pass/fail assertions, and so on.
  * Integrates well with `go test`, including coverage support.
- * Built-in support for Go concepts like build tags.
  * Inputs and sample output files can use the simple [txtar](https://pkg.go.dev/golang.org/x/tools/txtar)
  text archive format, also used by the Go playground.
- * Support for [automatically updating](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript#Params)
+ * Supports [automatically updating](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript#Params)
  golden files.
+ * Built-in support for Go concepts like build tags.
  * Accompanied by a [testscript](https://github.com/rogpeppe/go-internal/tree/master/cmd/testscript) command
  for running standalone scripts with files embedded in txtar format.
  
