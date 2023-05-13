@@ -452,6 +452,11 @@ func (ts *TestScript) cmdUNIX2DOS(neg bool, args []string) {
 
 // Tait waits for background commands to exit, setting stderr and stdout to their result.
 func (ts *TestScript) cmdWait(neg bool, args []string) {
+	defer catchFailNow(func() {
+		// There's been a failure in setup; fail immediately regardless
+		// of the ContinueOnError flag.
+		ts.t.FailNow()
+	})
 	if len(args) > 1 {
 		ts.Fatalf("usage: wait [name]")
 	}
