@@ -1,5 +1,4 @@
 //go:build unix && !darwin
-// +build unix,!darwin
 
 package testscript
 
