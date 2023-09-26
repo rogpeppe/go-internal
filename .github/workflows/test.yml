@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         go-version:
-        - '1.19.x'
         - '1.20.x'
+        - '1.21.x'
         os:
         - ubuntu-latest
         - macos-latest
@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Install Go
       uses: actions/setup-go@v4
       with:
@@ -33,7 +33,7 @@ jobs:
         go test -race ./...
 
     - name: Tidy
-      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.20.x' # no need to do this everywhere
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.21.x' # no need to do this everywhere
       run: |
         go mod tidy
 
