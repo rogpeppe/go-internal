@@ -444,15 +444,26 @@ func (ts *TestScript) setup() string {
 			"/=" + string(os.PathSeparator),
 			":=" + string(os.PathListSeparator),
 			"$=$",
-
-			// If we are collecting coverage profiles for merging into the main one,
-			// ensure the environment variable is forwarded to sub-processes.
-			"GOCOVERDIR=" + os.Getenv("GOCOVERDIR"),
 		},
 		WorkDir: ts.workdir,
 		Values:  make(map[interface{}]interface{}),
 		Cd:      ts.workdir,
 		ts:      ts,
+	}
+
+	// These env vars affect how a Go program behaves at run-time;
+	// If the user or `go test` wrapper set them, we should propagate them
+	// so that sub-process commands run via the test binary see them as well.
+	for _, name := range []string{
+		// If we are collecting coverage profiles, e.g. `go test -coverprofile`.
+		"GOCOVERDIR",
+		// If the user set GORACE when running a command like `go test -race`,
+		// such as GORACE=atexit_sleep_ms=10 to avoid the default 1s sleeps.
+		"GORACE",
+	} {
+		if val := os.Getenv(name); val != "" {
+			env.Vars = append(env.Vars, name+"="+val)
+		}
 	}
 	// Must preserve SYSTEMROOT on Windows: https://github.com/golang/go/issues/25513 et al
 	if runtime.GOOS == "windows" {
