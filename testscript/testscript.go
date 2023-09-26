@@ -16,7 +16,6 @@ import (
 	"go/build"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -262,14 +261,14 @@ func RunT(t T, p Params) {
 	}
 	testTempDir := p.WorkdirRoot
 	if testTempDir == "" {
-		testTempDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-test-script")
+		testTempDir, err = os.MkdirTemp(os.Getenv("GOTMPDIR"), "go-test-script")
 		if err != nil {
 			t.Fatal(err)
 		}
 	} else {
 		p.TestWork = true
 	}
-	// The temp dir returned by ioutil.TempDir might be a sym linked dir (default
+	// The temp dir returned by os.MkdirTemp might be a sym linked dir (default
 	// behaviour in macOS). That could mess up matching that includes $WORK if,
 	// for example, an external program outputs resolved paths. Evaluating the
 	// dir here will ensure consistency.
@@ -780,7 +779,7 @@ func (ts *TestScript) applyScriptUpdates() {
 			panic("script update file not found")
 		}
 	}
-	if err := ioutil.WriteFile(ts.file, txtar.Format(ts.archive), 0o666); err != nil {
+	if err := os.WriteFile(ts.file, txtar.Format(ts.archive), 0o666); err != nil {
 		ts.t.Fatal("cannot update script: ", err)
 	}
 	ts.Logf("%s updated", ts.file)
@@ -1174,7 +1173,7 @@ func (ts *TestScript) ReadFile(file string) string {
 		return ts.ttyout
 	default:
 		file = ts.MkAbs(file)
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		ts.Check(err)
 		return string(data)
 	}

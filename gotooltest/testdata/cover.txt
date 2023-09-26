@@ -13,12 +13,9 @@ stdout 'PASS'
 # Then, a 'go test' run with -coverprofile.
 # The total coverage after merging profiles should end up being 100%.
 # Marking all printlns as covered requires all edge cases to work well.
-# Go 1.20 learned to produce and merge multiple coverage profiles,
-# so versions before then report a shallow 0% coverage.
 go test -vet=off -coverprofile=cover.out -v
 stdout 'PASS'
-[go1.20] stdout 'coverage: 100\.0%'
-[!go1.20] stdout 'coverage: 0\.0%'
+stdout 'coverage: 100\.0%'
 ! stdout 'malformed coverage' # written by "go test" if cover.out is invalid
 exists cover.out
 
