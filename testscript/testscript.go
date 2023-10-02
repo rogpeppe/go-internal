@@ -1265,11 +1265,11 @@ func (ts *TestScript) parse(line string) []string {
 func removeAll(dir string) error {
 	// module cache has 0o444 directories;
 	// make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // ignore errors walking in file system
 		}
-		if info.IsDir() {
+		if entry.IsDir() {
 			os.Chmod(path, 0o777)
 		}
 		return nil
