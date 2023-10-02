@@ -16,7 +16,6 @@ import (
 	"bytes"
 	stdflag "flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -59,7 +58,10 @@ func main1() int {
 
 	a := new(txtar.Archive)
 	dir = filepath.Clean(dir)
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if path == dir {
 			return nil
 		}
@@ -73,9 +75,9 @@ func main1() int {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		if !utf8.Valid(data) {
 			log.Printf("%s: ignoring file with invalid UTF-8 data", path)
@@ -103,7 +105,9 @@ func main1() int {
 			Data: data,
 		})
 		return nil
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
 
 	data := txtar.Format(a)
 	os.Stdout.Write(data)

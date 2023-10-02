@@ -15,7 +15,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 
@@ -47,7 +47,7 @@ func main1() int {
 
 	var a *txtar.Archive
 	if flag.NArg() == 0 {
-		data, err := ioutil.ReadAll(os.Stdin)
+		data, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			log.Printf("cannot read stdin: %v", err)
 			return 1

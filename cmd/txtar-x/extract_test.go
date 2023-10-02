@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -34,11 +33,11 @@ func unquote(ts *testscript.TestScript, neg bool, args []string) {
 	}
 	for _, arg := range args {
 		file := ts.MkAbs(arg)
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		ts.Check(err)
 		data = bytes.Replace(data, []byte("\n>"), []byte("\n"), -1)
 		data = bytes.TrimPrefix(data, []byte(">"))
-		err = ioutil.WriteFile(file, data, 0o666)
+		err = os.WriteFile(file, data, 0o666)
 		ts.Check(err)
 	}
 }

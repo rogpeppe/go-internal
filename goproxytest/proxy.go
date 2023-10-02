@@ -26,7 +26,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -91,18 +91,18 @@ func (srv *Server) Close() {
 }
 
 func (srv *Server) readModList() error {
-	infos, err := ioutil.ReadDir(srv.dir)
+	entries, err := os.ReadDir(srv.dir)
 	if err != nil {
 		return err
 	}
-	for _, info := range infos {
-		name := info.Name()
+	for _, entry := range entries {
+		name := entry.Name()
 		switch {
 		case strings.HasSuffix(name, ".txt"):
 			name = strings.TrimSuffix(name, ".txt")
 		case strings.HasSuffix(name, ".txtar"):
 			name = strings.TrimSuffix(name, ".txtar")
-		case info.IsDir():
+		case entry.IsDir():
 		default:
 			continue
 		}
@@ -110,7 +110,7 @@ func (srv *Server) readModList() error {
 		if i < 0 {
 			continue
 		}
-		encPath := strings.Replace(name[:i], "_", "/", -1)
+		encPath := strings.ReplaceAll(name[:i], "_", "/")
 		path, err := module.UnescapePath(encPath)
 		if err != nil {
 			return fmt.Errorf("cannot decode module path in %q: %v", name, err)
@@ -286,7 +286,7 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 		return nil
 	}
 
-	prefix := strings.Replace(enc, "/", "_", -1)
+	prefix := strings.ReplaceAll(enc, "/", "_")
 	name := filepath.Join(srv.dir, prefix+"_"+encVers)
 	txtName := name + ".txt"
 	txtarName := name + ".txtar"
@@ -300,18 +300,18 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 			// fall back to trying a directory
 			a = new(txtar.Archive)
 
-			err = filepath.Walk(name, func(path string, info os.FileInfo, err error) error {
+			err = filepath.WalkDir(name, func(path string, entry fs.DirEntry, err error) error {
 				if err != nil {
 					return err
 				}
-				if path == name && !info.IsDir() {
+				if path == name && !entry.IsDir() {
 					return fmt.Errorf("expected a directory root")
 				}
-				if info.IsDir() {
+				if entry.IsDir() {
 					return nil
 				}
 				arpath := filepath.ToSlash(strings.TrimPrefix(path, name+string(os.PathSeparator)))
-				data, err := ioutil.ReadFile(path)
+				data, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
