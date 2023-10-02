@@ -1,0 +1,43 @@
+unquote expect
+unquote blah/needsquote.txtar
+# With both -script and -quote, it should include test.txtar after any 'unquote's
+exec txtar-c -quote -script test.txtar blah
+cmp stdout expect
+
+-- test.txtar --
+exec echo hello
+
+-- blah/go.mod --
+module example.com/blah
+
+-- blah/main.go --
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Println("Hello, world!")
+}
+
+-- blah/needsquote.txtar --
+>-- file_entry.txt --
+
+-- expect --
+>unquote needsquote.txtar
+>exec echo hello
+>
+>-- go.mod --
+>module example.com/blah
+>
+>-- main.go --
+>package main
+>
+>import "fmt"
+>
+>func main() {
+>  fmt.Println("Hello, world!")
+>}
+>
+>-- needsquote.txtar --
+>>-- file_entry.txt --
+>>

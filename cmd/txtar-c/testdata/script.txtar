@@ -1,0 +1,35 @@
+unquote expect
+# With the -script flag, it should include the contents of test.txtar as a comment
+exec txtar-c -script test.txtar blah
+cmp stdout expect
+
+-- test.txtar --
+exec echo hello
+
+-- blah/go.mod --
+module example.com/blah
+
+-- blah/main.go --
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Println("Hello, world!")
+}
+
+-- expect --
+>exec echo hello
+>
+>-- go.mod --
+>module example.com/blah
+>
+>-- main.go --
+>package main
+>
+>import "fmt"
+>
+>func main() {
+>  fmt.Println("Hello, world!")
+>}
+>
