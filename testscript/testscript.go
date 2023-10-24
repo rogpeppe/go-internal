@@ -413,6 +413,9 @@ func writeFile(name string, data []byte, perm fs.FileMode, excl bool) error {
 	return nil
 }
 
+// Name returns the short name or basename of the test script.
+func (ts *TestScript) Name() string { return ts.name }
+
 // setup sets up the test execution temporary directory and environment.
 // It returns the comment section of the txtar archive.
 func (ts *TestScript) setup() string {
