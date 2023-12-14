@@ -57,8 +57,8 @@ Each script runs in a fresh temporary work directory tree, available to scripts 
 Scripts also have access to these other environment variables:
 
 	PATH=<actual PATH>
-	HOME=/no-home
-	TMPDIR=$WORK/.tmp
+	HOME=/no-home (USERPROFILE on windows, home on plan9)
+	TMPDIR=$WORK/.tmp (TMP on windows)
 	devnull=<value of os.DevNull>
 	/=<value of os.PathSeparator>
 	:=<value of os.PathListSeparator>
