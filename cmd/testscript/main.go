@@ -8,7 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,7 +72,7 @@ func mainerr() (retErr error) {
 		return err
 	}
 
-	td, err := ioutil.TempDir("", "testscript")
+	td, err := os.MkdirTemp("", "testscript")
 	if err != nil {
 		return fmt.Errorf("unable to create temp dir: %v", err)
 	}
@@ -171,7 +171,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 	}
 
 	if filename == "-" {
-		byts, err := ioutil.ReadAll(os.Stdin)
+		byts, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("failed to read from stdin: %v", err)
 		}
@@ -204,7 +204,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 
 	scriptFile := filepath.Join(runDir, "script.txtar")
 
-	if err := ioutil.WriteFile(scriptFile, txtar.Format(&script), 0o666); err != nil {
+	if err := os.WriteFile(scriptFile, txtar.Format(&script), 0o666); err != nil {
 		return fmt.Errorf("failed to write script for %v: %v", renderFilename(filename), err)
 	}
 
@@ -309,7 +309,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 		// Parse the (potentially) updated scriptFile as an archive, then merge
 		// with the original archive, retaining order.  Then write the archive
 		// back to the source file
-		source, err := ioutil.ReadFile(scriptFile)
+		source, err := os.ReadFile(scriptFile)
 		if err != nil {
 			return fmt.Errorf("failed to read from script file %v for -update: %v", scriptFile, err)
 		}
@@ -323,7 +323,7 @@ func (tr *testRunner) run(runDir, filename string) error {
 				ar.Files[i] = newF
 			}
 		}
-		if err := ioutil.WriteFile(filename, txtar.Format(ar), 0o666); err != nil {
+		if err := os.WriteFile(filename, txtar.Format(ar), 0o666); err != nil {
 			return fmt.Errorf("failed to write script back to %v for -update: %v", renderFilename(filename), err)
 		}
 	}
