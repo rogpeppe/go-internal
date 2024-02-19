@@ -270,6 +270,27 @@ func TestScripts(t *testing.T) {
 				}
 			},
 			"echoandexit": echoandexit,
+			"mkChdir": func(ts *TestScript, neg bool, args []string) {
+				if neg {
+					ts.Fatalf("unsupported: ! mkChdir")
+				}
+				if len(args) != 1 {
+					ts.Fatalf("usage: mkChdir dir")
+				}
+
+				dir := args[0]
+				if !filepath.IsAbs(dir) {
+					dir = ts.MkAbs(dir)
+				}
+
+				if err := os.MkdirAll(dir, 0o777); err != nil {
+					ts.Fatalf("cannot create dir: %v", err)
+				}
+
+				if err := ts.Chdir(dir); err != nil {
+					ts.Fatalf("cannot chdir: %v", err)
+				}
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := ioutil.ReadDir(env.WorkDir)

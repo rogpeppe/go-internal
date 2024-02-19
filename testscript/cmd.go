@@ -62,18 +62,11 @@ func (ts *TestScript) cmdCd(neg bool, args []string) {
 	}
 
 	dir := args[0]
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(ts.cd, dir)
-	}
-	info, err := os.Stat(dir)
+	err := ts.Chdir(dir)
 	if os.IsNotExist(err) {
 		ts.Fatalf("directory %s does not exist", dir)
 	}
 	ts.Check(err)
-	if !info.IsDir() {
-		ts.Fatalf("%s is not a directory", dir)
-	}
-	ts.cd = dir
 	ts.Logf("%s\n", ts.cd)
 }
 
