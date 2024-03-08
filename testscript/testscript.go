@@ -1043,6 +1043,24 @@ func (ts *TestScript) BackgroundCmds() []*exec.Cmd {
 	return cmds
 }
 
+// Chdir changes the current directory of the script.
+// The path may be relative to the current directory.
+func (ts *TestScript) Chdir(dir string) error {
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(ts.cd, dir)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", dir)
+	}
+
+	ts.cd = dir
+	return nil
+}
+
 // waitOrStop waits for the already-started command cmd by calling its Wait method.
 //
 // If cmd does not return before ctx is done, waitOrStop sends it an interrupt
