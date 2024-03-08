@@ -179,6 +179,13 @@ The predefined commands are:
     The file's content must (or must not) match the regular expression pattern.
     For positive matches, -count=N specifies an exact number of matches to require.
 
+  - kill [-SIGNAL] [command]
+    Terminate all 'exec' and 'go' commands started in the background (with the '&'
+    token) by sending an termination signal. Recognized signals are KILL and INT.
+    If no signal is specified, KILL is sent.
+
+    If a command argument is specified, it terminates only that command.
+
   - mkdir path...
     Create the listed directories, if they do not already exists.
 
