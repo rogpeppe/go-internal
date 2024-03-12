@@ -351,5 +351,7 @@ for manual debugging of failing tests:
 	import "p2"
 	func F() { p2.F() }
 	$
+
+See also: https://pkg.go.dev/github.com/rogpeppe/go-internal/gotooltest
 */
 package testscript
