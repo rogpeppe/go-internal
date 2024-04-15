@@ -35,6 +35,7 @@ var scriptCmds = map[string]func(*TestScript, bool, []string){
 	"exec":     (*TestScript).cmdExec,
 	"exists":   (*TestScript).cmdExists,
 	"grep":     (*TestScript).cmdGrep,
+	"kill":     (*TestScript).cmdKill,
 	"mkdir":    (*TestScript).cmdMkdir,
 	"mv":       (*TestScript).cmdMv,
 	"rm":       (*TestScript).cmdRm,
@@ -484,7 +485,69 @@ func (ts *TestScript) cmdUNIX2DOS(neg bool, args []string) {
 	}
 }
 
-// Tait waits for background commands to exit, setting stderr and stdout to their result.
+// cmdKill kills background commands.
+func (ts *TestScript) cmdKill(neg bool, args []string) {
+	signals := map[string]os.Signal{
+		"INT":  os.Interrupt,
+		"KILL": os.Kill,
+	}
+	var (
+		name   string
+		signal os.Signal
+	)
+	switch len(args) {
+	case 0:
+	case 1, 2:
+		sig, ok := strings.CutPrefix(args[0], "-")
+		if ok {
+			signal, ok = signals[sig]
+			if !ok {
+				ts.Fatalf("unknown signal: %s", sig)
+			}
+		} else {
+			name = args[0]
+			break
+		}
+		if len(args) == 2 {
+			name = args[1]
+		}
+	default:
+		ts.Fatalf("usage: kill [-SIGNAL] [name]")
+	}
+	if neg {
+		ts.Fatalf("unsupported: ! kill")
+	}
+	if signal == nil {
+		signal = os.Kill
+	}
+	if name != "" {
+		ts.killBackgroundOne(name, signal)
+	} else {
+		ts.killBackground(signal)
+	}
+}
+
+func (ts *TestScript) killBackgroundOne(bgName string, signal os.Signal) {
+	bg := ts.findBackground(bgName)
+	if bg == nil {
+		ts.Fatalf("unknown background process %q", bgName)
+	}
+	err := bg.cmd.Process.Signal(signal)
+	if err != nil {
+		ts.Fatalf("unexpected error terminating background command %q: %v", bgName, err)
+	}
+}
+
+func (ts *TestScript) killBackground(signal os.Signal) {
+	for bgName, bg := range ts.background {
+		err := bg.cmd.Process.Signal(signal)
+		if err != nil {
+			ts.Fatalf("unexpected error terminating background command %q: %v", bgName, err)
+		}
+	}
+}
+
+// cmdWait waits for background commands to exit, setting stderr and stdout to their result.
 func (ts *TestScript) cmdWait(neg bool, args []string) {
 	if len(args) > 1 {
 		ts.Fatalf("usage: wait [name]")
