@@ -13,11 +13,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"github.com/rogpeppe/go-internal/goproxytest"
 	"github.com/rogpeppe/go-internal/gotooltest"
 	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/rogpeppe/go-internal/txtar"
 )
 
 const (
@@ -71,16 +71,6 @@ func mainerr() (retErr error) {
 		return err
 	}
 
-	td, err := os.MkdirTemp("", "testscript")
-	if err != nil {
-		return fmt.Errorf("unable to create temp dir: %v", err)
-	}
-	if *fWork {
-		fmt.Fprintf(os.Stderr, "temporary work directory: %v\n", td)
-	} else {
-		defer os.RemoveAll(td)
-	}
-
 	files := fs.Args()
 	if len(files) == 0 {
 		files = []string{"-"}
@@ -99,228 +89,95 @@ func mainerr() (retErr error) {
 	if onlyReadFromStdin && *fUpdate {
 		return fmt.Errorf("cannot use -u when reading from stdin")
 	}
-
-	tr := testRunner{
-		update:          *fUpdate,
-		continueOnError: *fContinue,
-		verbose:         *fVerbose,
-		env:             envVars.vals,
-		testWork:        *fWork,
-	}
-
-	dirNames := make(map[string]int)
-	for _, filename := range files {
-		// TODO make running files concurrent by default? If we do, note we'll need to do
-		// something smarter with the runner stdout and stderr below
-
-		// Derive a name for the directory from the basename of file, making
-		// uniq by adding a numeric suffix in the case we otherwise end
-		// up with multiple files with the same basename
-		dirName := filepath.Base(filename)
-		count := dirNames[dirName]
-		dirNames[dirName] = count + 1
-		if count != 0 {
-			dirName = fmt.Sprintf("%s%d", dirName, count)
+	var stdinTempFile string
+	for i, f := range files {
+		if f != "-" {
+			continue
 		}
-
-		runDir := filepath.Join(td, dirName)
-		if err := os.Mkdir(runDir, 0o777); err != nil {
-			return fmt.Errorf("failed to create a run directory within %v for %v: %v", td, renderFilename(filename), err)
+		if stdinTempFile != "" {
+			return fmt.Errorf("cannot read stdin twice")
 		}
-		if err := tr.run(runDir, filename); err != nil {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("error reading stdin: %v", err)
+		}
+		f, err := os.CreateTemp("", "stdin*.txtar")
+		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-type testRunner struct {
-	// update denotes that the source testscript archive filename should be
-	// updated in the case of any cmp failures.
-	update bool
-
-	// continueOnError indicates that T.FailNow should not panic, allowing the
-	// test script to continue running. Note that T is still marked as failed.
-	continueOnError bool
-
-	// verbose indicates the running of the script should be noisy.
-	verbose bool
-
-	// env is the environment that should be set on top of the base
-	// testscript-defined minimal environment.
-	env []string
-
-	// testWork indicates whether or not temporary working directory trees
-	// should be left behind. Corresponds exactly to the
-	// testscript.Params.TestWork field.
-	testWork bool
-}
-
-// run runs the testscript archive located at the path filename, within the
-// working directory runDir. filename could be "-" in the case of stdin
-func (tr *testRunner) run(runDir, filename string) error {
-	var ar *txtar.Archive
-	var err error
-
-	mods := filepath.Join(runDir, goModProxyDir)
-
-	if err := os.MkdirAll(mods, 0o777); err != nil {
-		return fmt.Errorf("failed to create goModProxy dir: %v", err)
-	}
-
-	if filename == "-" {
-		byts, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("failed to read from stdin: %v", err)
+		if _, err := f.Write(data); err != nil {
+			return err
 		}
-		ar = txtar.Parse(byts)
-	} else {
-		ar, err = txtar.ParseFile(filename)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to txtar parse %v: %v", renderFilename(filename), err)
-	}
-
-	var script, gomodProxy txtar.Archive
-	script.Comment = ar.Comment
-
-	for _, f := range ar.Files {
-		fp := filepath.Clean(filepath.FromSlash(f.Name))
-		parts := strings.Split(fp, string(os.PathSeparator))
-
-		if len(parts) > 1 && parts[0] == goModProxyDir {
-			gomodProxy.Files = append(gomodProxy.Files, f)
-		} else {
-			script.Files = append(script.Files, f)
+		if err := f.Close(); err != nil {
+			return err
 		}
-	}
-
-	if txtar.Write(&gomodProxy, runDir); err != nil {
-		return fmt.Errorf("failed to write .gomodproxy files: %v", err)
-	}
-
-	scriptFile := filepath.Join(runDir, "script.txtar")
-
-	if err := os.WriteFile(scriptFile, txtar.Format(&script), 0o666); err != nil {
-		return fmt.Errorf("failed to write script for %v: %v", renderFilename(filename), err)
+		stdinTempFile = f.Name()
+		files[i] = stdinTempFile
+		defer os.Remove(stdinTempFile)
 	}
 
 	p := testscript.Params{
-		Dir:             runDir,
-		UpdateScripts:   tr.update,
-		ContinueOnError: tr.continueOnError,
+		Setup:           func(*testscript.Env) error { return nil },
+		Files:           files,
+		UpdateScripts:   *fUpdate,
+		ContinueOnError: *fContinue,
+		TestWork:        *fWork,
 	}
 
 	if _, err := exec.LookPath("go"); err == nil {
 		if err := gotooltest.Setup(&p); err != nil {
-			return fmt.Errorf("failed to setup go tool for %v run: %v", renderFilename(filename), err)
+			return fmt.Errorf("failed to setup go tool: %v", err)
 		}
 	}
-
-	addSetup := func(f func(env *testscript.Env) error) {
-		origSetup := p.Setup
-		p.Setup = func(env *testscript.Env) error {
-			if origSetup != nil {
-				if err := origSetup(env); err != nil {
-					return err
-				}
+	origSetup := p.Setup
+	p.Setup = func(env *testscript.Env) error {
+		if err := origSetup(env); err != nil {
+			return err
+		}
+		if *fWork {
+			env.T().Log("temporary work directory: ", env.WorkDir)
+		}
+		proxyDir := filepath.Join(env.WorkDir, goModProxyDir)
+		if info, err := os.Stat(proxyDir); err == nil && info.IsDir() {
+			srv, err := goproxytest.NewServer(proxyDir, "")
+			if err != nil {
+				return fmt.Errorf("cannot start Go proxy: %v", err)
 			}
-			return f(env)
-		}
-	}
+			env.Defer(srv.Close)
 
-	if tr.testWork {
-		addSetup(func(env *testscript.Env) error {
-			fmt.Fprintf(os.Stderr, "temporary work directory for %s: %s\n", renderFilename(filename), env.WorkDir)
-			return nil
-		})
-	}
-
-	if len(gomodProxy.Files) > 0 {
-		srv, err := goproxytest.NewServer(mods, "")
-		if err != nil {
-			return fmt.Errorf("cannot start proxy for %v: %v", renderFilename(filename), err)
-		}
-		defer srv.Close()
-
-		addSetup(func(env *testscript.Env) error {
 			// Add GOPROXY after calling the original setup
 			// so that it overrides any GOPROXY set there.
 			env.Vars = append(env.Vars,
 				"GOPROXY="+srv.URL,
 				"GONOSUMDB=*",
 			)
-			return nil
-		})
-	}
-
-	if len(tr.env) > 0 {
-		addSetup(func(env *testscript.Env) error {
-			for _, v := range tr.env {
-				varName := v
-				if i := strings.Index(v, "="); i >= 0 {
-					varName = v[:i]
-				} else {
-					v = fmt.Sprintf("%s=%s", v, os.Getenv(v))
-				}
-				switch varName {
-				case "":
-					return fmt.Errorf("invalid variable name %q", varName)
-				case "WORK":
-					return fmt.Errorf("cannot override WORK variable")
-				}
-				env.Vars = append(env.Vars, v)
+		}
+		for _, v := range envVars.vals {
+			varName, _, ok := strings.Cut(v, "=")
+			if !ok {
+				v += "=" + os.Getenv(v)
 			}
-			return nil
-		})
+			switch varName {
+			case "":
+				return fmt.Errorf("invalid variable name %q", varName)
+			case "WORK":
+				return fmt.Errorf("cannot override WORK variable")
+			}
+			env.Vars = append(env.Vars, v)
+		}
+		return nil
 	}
 
 	r := &runT{
-		verbose: tr.verbose,
+		verbose:       *fVerbose,
+		stdinTempFile: stdinTempFile,
 	}
-
-	func() {
-		defer func() {
-			switch recover() {
-			case nil, skipRun:
-			case failedRun:
-				err = failedRun
-			default:
-				panic(fmt.Errorf("unexpected panic: %v [%T]", err, err))
-			}
-		}()
-		testscript.RunT(r, p)
-	}()
-
-	if err != nil {
-		return fmt.Errorf("error running %v in %v\n", renderFilename(filename), runDir)
+	r.Run("", func(t testscript.T) {
+		testscript.RunT(t, p)
+	})
+	if r.failed.Load() {
+		return failedRun
 	}
-
-	if tr.update && filename != "-" {
-		// Parse the (potentially) updated scriptFile as an archive, then merge
-		// with the original archive, retaining order.  Then write the archive
-		// back to the source file
-		source, err := os.ReadFile(scriptFile)
-		if err != nil {
-			return fmt.Errorf("failed to read from script file %v for -update: %v", scriptFile, err)
-		}
-		updatedAr := txtar.Parse(source)
-		updatedFiles := make(map[string]txtar.File)
-		for _, f := range updatedAr.Files {
-			updatedFiles[f.Name] = f
-		}
-		for i, f := range ar.Files {
-			if newF, ok := updatedFiles[f.Name]; ok {
-				ar.Files[i] = newF
-			}
-		}
-		if err := os.WriteFile(filename, txtar.Format(ar), 0o666); err != nil {
-			return fmt.Errorf("failed to write script back to %v for -update: %v", renderFilename(filename), err)
-		}
-	}
-
 	return nil
 }
 
@@ -329,18 +186,11 @@ var (
 	skipRun   = errors.New("skip")
 )
 
-// renderFilename renders filename in error messages, taking into account
-// the filename could be the special "-" (stdin)
-func renderFilename(filename string) string {
-	if filename == "-" {
-		return "<stdin>"
-	}
-	return filename
-}
-
 // runT implements testscript.T and is used in the call to testscript.Run
 type runT struct {
-	verbose bool
+	verbose       bool
+	stdinTempFile string
+	failed        atomic.Bool
 }
 
 func (r *runT) Skip(is ...interface{}) {
@@ -353,22 +203,36 @@ func (r *runT) Fatal(is ...interface{}) {
 }
 
 func (r *runT) Parallel() {
-	// No-op for now; we are currently only running a single script in a
-	// testscript instance.
+	// TODO run tests in parallel.
 }
 
 func (r *runT) Log(is ...interface{}) {
-	fmt.Print(is...)
+	msg := fmt.Sprint(is...)
+	if r.stdinTempFile != "" {
+		msg = strings.ReplaceAll(msg, r.stdinTempFile, "<stdin>")
+	}
+	if !strings.HasSuffix(msg, "\n") {
+		msg += "\n"
+	}
+	fmt.Print(msg)
 }
 
 func (r *runT) FailNow() {
 	panic(failedRun)
 }
 
-func (r *runT) Run(n string, f func(t testscript.T)) {
-	// For now we we don't top/tail the run of a subtest. We are currently only
-	// running a single script in a testscript instance, which means that we
-	// will only have a single subtest.
+func (r *runT) Run(name string, f func(t testscript.T)) {
+	// TODO: perhaps log the test name when there's more
+	// than one test file?
+	defer func() {
+		switch err := recover(); err {
+		case nil, skipRun:
+		case failedRun:
+			r.failed.Store(true)
+		default:
+			panic(fmt.Errorf("unexpected panic: %v [%T]", err, err))
+		}
+	}()
 	f(r)
 }
 

@@ -4,11 +4,11 @@ unquote file.txt
 # stdin
 stdin file.txt
 ! testscript -v
-stderr 'error running <stdin> in'
+stdout 'FAIL: <stdin>:1: unexpected command failure'
 
 # file-based
 ! testscript -v file.txt
-stderr 'error running file.txt in'
+stdout 'FAIL: file.txt:1: unexpected command failure'
 
 -- file.txt --
 >exec false

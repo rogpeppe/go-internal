@@ -9,13 +9,15 @@
 unquote file.txt dir/file.txt
 
 testscript -v -work file.txt dir/file.txt
-stderr '^temporary work directory: \Q'$WORK'\E[/\\]\.tmp[/\\]'
-stderr '^temporary work directory for file.txt: \Q'$WORK'\E[/\\]\.tmp[/\\]'
-stderr '^temporary work directory for dir[/\\]file.txt: \Q'$WORK'\E[/\\]\.tmp[/\\]'
-expandone $WORK/.tmp/testscript*/file.txt/script.txtar
-expandone $WORK/.tmp/testscript*/file.txt#1/script.txtar
+stdout '^temporary work directory: \Q'$WORK'\E[/\\]\.tmp[/\\]'
+expandone $WORK/.tmp/go-test-script*/script-file/foo
+expandone $WORK/.tmp/go-test-script*/script-file#1/bar
 
 -- file.txt --
 >exec true
+>-- foo --
+>hello
 -- dir/file.txt --
 >exec true
+>-- bar --
+>hello
