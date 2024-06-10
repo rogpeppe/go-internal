@@ -508,7 +508,3 @@ func (t *fakeT) Run(name string, f func(T)) {
 func (t *fakeT) Verbose() bool {
 	return t.verbose
 }
-
-func (t *fakeT) Failed() bool {
-	return t.failed
-}

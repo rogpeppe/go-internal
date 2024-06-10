@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 
 	"github.com/rogpeppe/go-internal/goproxytest"
 	"github.com/rogpeppe/go-internal/gotooltest"
@@ -293,12 +292,6 @@ func (tr *testRunner) run(runDir, filename string) error {
 			}
 		}()
 		testscript.RunT(r, p)
-
-		// When continueOnError is true, FailNow does not call panic(failedRun).
-		// We still want err to be set, as the script resulted in a failure.
-		if r.Failed() {
-			err = failedRun
-		}
 	}()
 
 	if err != nil {
@@ -348,7 +341,6 @@ func renderFilename(filename string) string {
 // runT implements testscript.T and is used in the call to testscript.Run
 type runT struct {
 	verbose bool
-	failed  int32
 }
 
 func (r *runT) Skip(is ...interface{}) {
@@ -370,12 +362,7 @@ func (r *runT) Log(is ...interface{}) {
 }
 
 func (r *runT) FailNow() {
-	atomic.StoreInt32(&r.failed, 1)
 	panic(failedRun)
-}
-
-func (r *runT) Failed() bool {
-	return atomic.LoadInt32(&r.failed) != 0
 }
 
 func (r *runT) Run(n string, f func(t testscript.T)) {

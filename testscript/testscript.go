@@ -219,8 +219,7 @@ type T interface {
 	Verbose() bool
 }
 
-// TFailed holds optional extra methods implemented on T.
-// It's defined as a separate type for backward compatibility reasons.
+// Deprecated: this type is unused.
 type TFailed interface {
 	Failed() bool
 }
