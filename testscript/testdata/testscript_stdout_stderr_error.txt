@@ -9,6 +9,7 @@ cmpenv stdout stdout.golden
 > printargs hello world
 > echoandexit 1 'this is stdout' 'this is stderr'
 -- stdout.golden --
+** RUN testscript **
 >  printargs hello world
 [stdout]
 ["printargs" "hello" "world"]

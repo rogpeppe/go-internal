@@ -164,7 +164,7 @@ func TestSetupFailure(t *testing.T) {
 		t.Fatal("test should have failed because of setup failure")
 	}
 
-	want := regexp.MustCompile(`^FAIL: .*: some failure\n$`)
+	want := regexp.MustCompile(`\nFAIL: .*: some failure\n$`)
 	if got := ft.log.String(); !want.MatchString(got) {
 		t.Fatalf("expected msg to match `%v`; got:\n%q", want, got)
 	}
@@ -226,18 +226,28 @@ func TestScripts(t *testing.T) {
 				fUniqueNames := fset.Bool("unique-names", false, "require unique names in txtar archive")
 				fVerbose := fset.Bool("v", false, "be verbose with output")
 				fContinue := fset.Bool("continue", false, "continue on error")
+				fFiles := fset.Bool("files", false, "specify files rather than a directory")
 				if err := fset.Parse(args); err != nil {
 					ts.Fatalf("failed to parse args for testscript: %v", err)
 				}
-				if fset.NArg() != 1 {
-					ts.Fatalf("testscript [-v] [-continue] [-update] [-explicit-exec] <dir>")
+				if fset.NArg() != 1 && !*fFiles {
+					ts.Fatalf("testscript [-v] [-continue] [-update] [-explicit-exec] [-files] <dir>|<file>...")
 				}
-				dir := fset.Arg(0)
+				var files []string
+				var dir string
+				if *fFiles {
+					for _, f := range fset.Args() {
+						files = append(files, ts.MkAbs(f))
+					}
+				} else {
+					dir = ts.MkAbs(fset.Arg(0))
+				}
 				t := &fakeT{verbose: *fVerbose}
 				func() {
 					defer catchAbort()
 					RunT(t, Params{
-						Dir:                 ts.MkAbs(dir),
+						Dir:                 dir,
+						Files:               files,
 						UpdateScripts:       *fUpdate,
 						RequireExplicitExec: *fExplicitExec,
 						RequireUniqueNames:  *fUniqueNames,
@@ -502,9 +512,27 @@ func (t *fakeT) FailNow() {
 }
 
 func (t *fakeT) Run(name string, f func(T)) {
-	f(t)
+	fmt.Fprintf(&t.log, "** RUN %s **\n", name)
+	defer catchAbort()
+	f(&subT{
+		fakeT: t,
+	})
 }
 
 func (t *fakeT) Verbose() bool {
 	return t.verbose
+}
+
+type subT struct {
+	*fakeT
+	failed bool
+}
+
+func (t *subT) Run(name string, f func(T)) {
+	panic("multiple test levels not supported")
+}
+
+func (t *subT) FailNow() {
+	t.failed = true
+	t.fakeT.FailNow()
 }

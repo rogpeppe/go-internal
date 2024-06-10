@@ -7,6 +7,7 @@ env
 cmpenv stdout stdout.golden
 
 -- stdout.golden --
+** RUN script **
 > cmp a b
 diff a b
 --- a

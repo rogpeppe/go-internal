@@ -13,7 +13,7 @@ stderr '^temporary work directory: \Q'$WORK'\E[/\\]\.tmp[/\\]'
 stderr '^temporary work directory for file.txt: \Q'$WORK'\E[/\\]\.tmp[/\\]'
 stderr '^temporary work directory for dir[/\\]file.txt: \Q'$WORK'\E[/\\]\.tmp[/\\]'
 expandone $WORK/.tmp/testscript*/file.txt/script.txtar
-expandone $WORK/.tmp/testscript*/file.txt1/script.txtar
+expandone $WORK/.tmp/testscript*/file.txt#1/script.txtar
 
 -- file.txt --
 >exec true

@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -136,6 +137,11 @@ type Params struct {
 	// Dir is interpreted relative to the current test directory.
 	Dir string
 
+	// Files holds a set of script filenames. If Dir is empty and this
+	// is non-nil, these files will be used instead of reading
+	// a directory.
+	Files []string
+
 	// Setup is called, if not nil, to complete any setup required
 	// for a test. The WorkDir and Vars fields will have already
 	// been initialized and all the files extracted into WorkDir,
@@ -241,24 +247,29 @@ func (t tshim) Verbose() bool {
 // RunT is like Run but uses an interface type instead of the concrete *testing.T
 // type to make it possible to use testscript functionality outside of go test.
 func RunT(t T, p Params) {
-	entries, err := os.ReadDir(p.Dir)
-	if os.IsNotExist(err) {
-		// Continue so we give a helpful error on len(files)==0 below.
-	} else if err != nil {
-		t.Fatal(err)
-	}
 	var files []string
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasSuffix(name, ".txtar") || strings.HasSuffix(name, ".txt") {
-			files = append(files, filepath.Join(p.Dir, name))
+	if p.Dir == "" && p.Files != nil {
+		files = p.Files
+	} else {
+		entries, err := os.ReadDir(p.Dir)
+		if os.IsNotExist(err) {
+			// Continue so we give a helpful error on len(files)==0 below.
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			name := entry.Name()
+			if strings.HasSuffix(name, ".txtar") || strings.HasSuffix(name, ".txt") {
+				files = append(files, filepath.Join(p.Dir, name))
+			}
+		}
+
+		if len(files) == 0 {
+			t.Fatal(fmt.Sprintf("no txtar nor txt scripts found in dir %s", p.Dir))
 		}
 	}
-
-	if len(files) == 0 {
-		t.Fatal(fmt.Sprintf("no txtar nor txt scripts found in dir %s", p.Dir))
-	}
 	testTempDir := p.WorkdirRoot
+	var err error
 	if testTempDir == "" {
 		testTempDir, err = os.MkdirTemp(os.Getenv("GOTMPDIR"), "go-test-script")
 		if err != nil {
@@ -307,10 +318,27 @@ func RunT(t T, p Params) {
 	}
 
 	refCount := int32(len(files))
+	names := make(map[string]bool)
 	for _, file := range files {
 		file := file
-		name := strings.TrimSuffix(filepath.Base(file), ".txt")
-		name = strings.TrimSuffix(name, ".txtar")
+		name := filepath.Base(file)
+		if name1, ok := strings.CutSuffix(name, ".txt"); ok {
+			name = name1
+		} else if name1, ok := strings.CutSuffix(name, ".txtar"); ok {
+			name = name1
+		}
+		// We can have duplicate names when files are passed explicitly,
+		// so disambiguate by adding a counter.
+		// Take care to handle the situation where a name with a counter-like
+		// suffix already exists, for example:
+		//	a/foo.txt
+		//	b/foo.txtar
+		//	c/foo#1.txt
+		prefix := name
+		for i := 1; names[name]; i++ {
+			name = prefix + "#" + strconv.Itoa(i)
+		}
+		names[name] = true
 		t.Run(name, func(t T) {
 			t.Parallel()
 			ts := &TestScript{
