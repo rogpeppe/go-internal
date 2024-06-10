@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -754,15 +754,8 @@ func (ts *TestScript) cmdSuggestions(name string) []string {
 		return nil
 	}
 	// deduplicate candidates
-	// TODO: Use slices.Compact (and maybe slices.Sort) once we can use Go 1.21
-	sort.Strings(candidates)
-	out := candidates[:1]
-	for _, c := range candidates[1:] {
-		if out[len(out)-1] == c {
-			out = append(out, c)
-		}
-	}
-	return out
+	slices.Sort(candidates)
+	return slices.Compact(candidates)
 }
 
 func (ts *TestScript) applyScriptUpdates() {
