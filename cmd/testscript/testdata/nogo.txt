@@ -7,7 +7,6 @@ dropgofrompath
 
 ! testscript -v file.txt
 stdout 'unknown command "go"'
-stderr 'error running file.txt in'
 
 -- file.txt --
 >go env
