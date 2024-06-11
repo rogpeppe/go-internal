@@ -110,6 +110,7 @@ cmpenv stdout stdout.golden
 >a
 >a
 -- stdout.golden --
+** RUN script **
 > cmp a b
 diff a b
 --- a
