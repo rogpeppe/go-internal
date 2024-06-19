@@ -578,6 +578,7 @@ func (ts *TestScript) waitBackgroundOne(bgName string) {
 	}
 	// Note: ignore bg.neg, which only takes effect on the non-specific
 	// wait command.
+	println(ts.file, bg.cmd.ProcessState.Success(), bg.cmd.ProcessState.Exited(), bg.cmd.ProcessState.ExitCode())
 	if bg.cmd.ProcessState.Success() {
 		if bg.neg {
 			ts.Fatalf("unexpected command success")
@@ -634,6 +635,7 @@ func (ts *TestScript) waitBackground(checkStatus bool) {
 		if !checkStatus {
 			continue
 		}
+		println(ts.file, bg.cmd.ProcessState.Success(), bg.cmd.ProcessState.Exited(), bg.cmd.ProcessState.ExitCode())
 		if bg.cmd.ProcessState.Success() {
 			if bg.neg {
 				ts.Fatalf("unexpected command success")
