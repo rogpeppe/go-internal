@@ -651,7 +651,12 @@ func (ts *TestScript) run() {
 	for _, bg := range ts.background {
 		interruptProcess(bg.cmd.Process)
 	}
-	ts.cmdWait(false, nil)
+	func() {
+		defer catchFailNow(func() {
+			failed = true
+		})
+		ts.cmdWait(false, nil)
+	}()
 
 	// If we reached here but we've failed (probably because ContinueOnError
 	// was set), don't wipe the log and print "PASS".
