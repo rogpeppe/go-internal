@@ -651,7 +651,11 @@ func (ts *TestScript) run() {
 	for _, bg := range ts.background {
 		interruptProcess(bg.cmd.Process)
 	}
-	ts.cmdWait(false, nil)
+	// On some platforms like Windows, we kill background commands directly
+	// as we can't send them an interrupt signal, so they always fail.
+	// Moreover, it's relatively common for a process to fail when interrupted.
+	// Once we've reached the end of the script, ignore the status of background commands.
+	ts.waitBackground(false)
 
 	// If we reached here but we've failed (probably because ContinueOnError
 	// was set), don't wipe the log and print "PASS".
