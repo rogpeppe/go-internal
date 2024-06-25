@@ -911,7 +911,7 @@ func (ts *TestScript) Check(err error) {
 }
 
 // Stdout returns an io.Writer that can be used by a user-supplied builtin
-// command (delcared via Params.Cmds) to write to stdout. If this method is
+// command (declared via Params.Cmds) to write to stdout. If this method is
 // called outside of the execution of a user-supplied builtin command, the
 // call panics.
 func (ts *TestScript) Stdout() io.Writer {
@@ -923,7 +923,7 @@ func (ts *TestScript) Stdout() io.Writer {
 }
 
 // Stderr returns an io.Writer that can be used by a user-supplied builtin
-// command (delcared via Params.Cmds) to write to stderr. If this method is
+// command (declared via Params.Cmds) to write to stderr. If this method is
 // called outside of the execution of a user-supplied builtin command, the
 // call panics.
 func (ts *TestScript) Stderr() io.Writer {
@@ -1209,7 +1209,7 @@ func (ts *TestScript) MkAbs(file string) string {
 }
 
 // ReadFile returns the contents of the file with the
-// given name, intepreted relative to the test script's
+// given name, interpreted relative to the test script's
 // current directory. It interprets "stdout" and "stderr" to
 // mean the standard output or standard error from
 // the most recent exec or wait command respectively.
