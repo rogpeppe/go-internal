@@ -1,4 +1,4 @@
 # Let testscript stop signalcatcher at the end of the testscript.
 
-signalcatcher &
-waitfile catchsignal
+signalcatcher &sigc&
+waitmatch sigc '^Ready to catch signals'
