@@ -1,7 +1,20 @@
 [windows] skip
 
-signalcatcher &
-waitfile catchsignal
+# Start a background process, wait for it to be ready by printing a line,
+# send it an interrupt to stop, and wait for it to stop.
+
+signalcatcher &sigc&
+waitmatch sigc '^Ready to catch signals; the magic word is (.*)$' MAGIC_WORD
+printargs ${MAGIC_WORD}
+cmp stdout args.want
+
 interrupt
 wait
-stdout 'caught interrupt'
+# Make sure the entire stdout still contains what waitmatch read.
+cmp stdout stdout.want
+
+-- args.want --
+["printargs" "Huzzah!"]
+-- stdout.want --
+Ready to catch signals; the magic word is Huzzah!
+caught interrupt
