@@ -14,10 +14,7 @@ import (
 )
 
 func TestScripts(t *testing.T) {
-	srv, err := goproxytest.NewServer(filepath.Join("testdata", "mod"), "")
-	if err != nil {
-		t.Fatalf("cannot start proxy: %v", err)
-	}
+	srv := goproxytest.NewTestServer(t, filepath.Join("testdata", "mod"), "")
 	p := testscript.Params{
 		Dir: "testdata",
 		Setup: func(e *testscript.Env) error {
