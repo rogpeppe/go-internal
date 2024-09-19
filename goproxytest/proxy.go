@@ -33,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -45,26 +46,43 @@ type Server struct {
 	server       *http.Server
 	URL          string
 	dir          string
+	logf         func(string, ...any)
 	modList      []module.Version
 	zipCache     par.Cache
 	archiveCache par.Cache
 }
 
-// StartProxy starts the Go module proxy listening on the given
+// NewTestServer is a wrapper around [NewServer] for use in Go tests.
+// Failure to start the server stops the test via [testing.TB.Fatalf],
+// all server logs go through [testing.TB.Logf],
+// and the server is closed when the test finishes via [testing.TB.Cleanup].
+func NewTestServer(tb testing.TB, dir, addr string) *Server {
+	srv, err := newServer(dir, addr, tb.Logf)
+	if err != nil {
+		tb.Fatalf("cannot start Go proxy: %v", err)
+	}
+	tb.Cleanup(srv.Close)
+	return srv
+}
+
+// NewServer starts the Go module proxy listening on the given
 // network address. It serves modules taken from the given directory
 // name. If addr is empty, it will listen on an arbitrary
 // localhost port. If dir is empty, "testmod" will be used.
 //
 // The returned Server should be closed after use.
 func NewServer(dir, addr string) (*Server, error) {
-	var srv Server
+	return newServer(dir, addr, log.Printf)
+}
+
+func newServer(dir, addr string, logf func(string, ...any)) (*Server, error) {
 	if addr == "" {
 		addr = "localhost:0"
 	}
 	if dir == "" {
 		dir = "testmod"
 	}
-	srv.dir = dir
+	srv := Server{dir: dir, logf: logf}
 	if err := srv.readModList(); err != nil {
 		return nil, fmt.Errorf("cannot read modules: %v", err)
 	}
@@ -79,7 +97,7 @@ func NewServer(dir, addr string) (*Server, error) {
 	srv.URL = "http://" + addr + "/mod"
 	go func() {
 		if err := srv.server.Serve(l); err != nil && err != http.ErrServerClosed {
-			log.Printf("go proxy: http.Serve: %v", err)
+			srv.logf("go proxy: http.Serve: %v", err)
 		}
 	}()
 	return &srv, nil
@@ -141,7 +159,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 	enc, file := path[:i], path[i+len("/@v/"):]
 	path, err := module.UnescapePath(enc)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+		srv.logf("go proxy_test: %v\n", err)
 		http.NotFound(w, r)
 		return
 	}
@@ -169,7 +187,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 	encVers, ext := file[:i], file[i+1:]
 	vers, err := module.UnescapeVersion(encVers)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+		srv.logf("go proxy_test: %v\n", err)
 		http.NotFound(w, r)
 		return
 	}
@@ -204,7 +222,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		// to resolve github.com, github.com/hello and github.com/hello/world.
 		// cmd/go expects a 404/410 response if there is nothing there. Hence we
 		// cannot return with a 500.
-		fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s\n", path, vers)
+		srv.logf("go proxy: no archive %s %s\n", path, vers)
 		http.NotFound(w, r)
 		return
 	}
@@ -246,7 +264,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}).(cached)
 
 		if c.err != nil {
-			fmt.Fprintf(os.Stderr, "go proxy: %v\n", c.err)
+			srv.logf("go proxy: %v\n", c.err)
 			http.Error(w, c.err.Error(), 500)
 			return
 		}
@@ -277,12 +295,12 @@ func (srv *Server) findHash(m module.Version) string {
 func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	enc, err := module.EscapePath(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+		srv.logf("go proxy: %v\n", err)
 		return nil
 	}
 	encVers, err := module.EscapeVersion(vers)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+		srv.logf("go proxy: %v\n", err)
 		return nil
 	}
 
@@ -324,7 +342,7 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 		}
 		if err != nil {
 			if !os.IsNotExist(err) {
-				fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+				srv.logf("go proxy: %v\n", err)
 			}
 			a = nil
 		}
