@@ -75,7 +75,6 @@ func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
 
 		// We're not in a subcommand.
 		for name := range commands {
-			name := name
 			// Set up this command in the directory we added to $PATH.
 			binfile := filepath.Join(bindir, name)
 			if runtime.GOOS == "windows" {
