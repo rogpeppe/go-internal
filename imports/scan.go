@@ -85,6 +85,7 @@ Files:
 
 var ErrNoGo = fmt.Errorf("no Go source files")
 
+// TODO: replace with maps.Keys from go1.23
 func keys(m map[string]bool) []string {
 	var list []string
 	for k := range m {

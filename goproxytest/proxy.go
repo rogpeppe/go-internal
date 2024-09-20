@@ -24,6 +24,7 @@ package goproxytest
 import (
 	"archive/zip"
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -76,12 +77,8 @@ func NewServer(dir, addr string) (*Server, error) {
 }
 
 func newServer(dir, addr string, logf func(string, ...any)) (*Server, error) {
-	if addr == "" {
-		addr = "localhost:0"
-	}
-	if dir == "" {
-		dir = "testmod"
-	}
+	addr = cmp.Or(addr, "localhost:0")
+	dir = cmp.Or(dir, "testmod")
 	srv := Server{dir: dir, logf: logf}
 	if err := srv.readModList(); err != nil {
 		return nil, fmt.Errorf("cannot read modules: %v", err)

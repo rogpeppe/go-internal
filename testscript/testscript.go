@@ -320,7 +320,6 @@ func RunT(t T, p Params) {
 	refCount := int32(len(files))
 	names := make(map[string]bool)
 	for _, file := range files {
-		file := file
 		name := filepath.Base(file)
 		if name1, ok := strings.CutSuffix(name, ".txt"); ok {
 			name = name1
@@ -737,13 +736,13 @@ func (ts *TestScript) runLine(line string) (runOK bool) {
 			ts.Fatalf("unknown command %q", args[0])
 		}
 	}
-	ts.callBuiltinCmd(args[0], func() {
+	ts.callBuiltinCmd(func() {
 		cmd(ts, neg, args[1:])
 	})
 	return true
 }
 
-func (ts *TestScript) callBuiltinCmd(cmd string, runCmd func()) {
+func (ts *TestScript) callBuiltinCmd(runCmd func()) {
 	ts.runningBuiltin = true
 	defer func() {
 		r := recover()
