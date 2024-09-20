@@ -12,17 +12,16 @@ Contributions are welcome, but please open an issue for discussion first.
 
 Included are the following:
 
-- dirhash: calculate hashes over directory trees the same way that the Go tool does.
 - goproxytest: a GOPROXY implementation designed for test use.
 - gotooltest: Use the Go tool inside test scripts (see testscript below)
 - imports: list of known architectures and OSs, and support for reading import statements.
-- modfile: read and write `go.mod` files while preserving formatting and comments.
-- module: module paths and versions.
 - par: do work in parallel.
-- semver: semantic version parsing.
 - testenv: information on the current testing environment.
 - testscript: script-based testing based on txtar files
 - txtar: simple text-based file archives for testing.
+
+Note that most users of `txtar` should use https://pkg.go.dev/golang.org/x/tools/txtar instead.
+Our package will be replaced by it once https://github.com/golang/go/issues/59264 is fixed.
 
 ### testscript
 
