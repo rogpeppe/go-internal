@@ -21,12 +21,11 @@ import (
 	"time"
 )
 
-func printArgs() int {
+func printArgs() {
 	fmt.Printf("%q\n", os.Args)
-	return 0
 }
 
-func fprintArgs() int {
+func fprintArgs() {
 	s := strings.Join(os.Args[2:], " ")
 	switch os.Args[1] {
 	case "stdout":
@@ -34,15 +33,14 @@ func fprintArgs() int {
 	case "stderr":
 		fmt.Fprintln(os.Stderr, s)
 	}
-	return 0
 }
 
-func exitWithStatus() int {
+func exitWithStatus() {
 	n, _ := strconv.Atoi(os.Args[1])
-	return n
+	os.Exit(n)
 }
 
-func signalCatcher() int {
+func signalCatcher() {
 	// Note: won't work under Windows.
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -50,27 +48,25 @@ func signalCatcher() int {
 	// we will catch the signal.
 	if err := os.WriteFile("catchsignal", nil, 0o666); err != nil {
 		fmt.Println(err)
-		return 1
+		os.Exit(1)
 	}
 	<-c
 	fmt.Println("caught interrupt")
-	return 0
 }
 
-func terminalPrompt() int {
+func terminalPrompt() {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		fmt.Println(err)
-		return 1
+		os.Exit(1)
 	}
 	tty.WriteString("The magic words are: ")
 	var words string
 	fmt.Fscanln(tty, &words)
 	if words != "SQUEAMISHOSSIFRAGE" {
 		fmt.Println(words)
-		return 42
+		os.Exit(42)
 	}
-	return 0
 }
 
 func TestMain(m *testing.M) {
@@ -79,13 +75,13 @@ func TestMain(m *testing.M) {
 	}
 
 	showVerboseEnv = false
-	os.Exit(RunMain(m, map[string]func() int{
+	Main(m, map[string]func(){
 		"printargs":      printArgs,
 		"fprintargs":     fprintArgs,
 		"status":         exitWithStatus,
 		"signalcatcher":  signalCatcher,
 		"terminalprompt": terminalPrompt,
-	}))
+	})
 }
 
 func TestCRLFInput(t *testing.T) {

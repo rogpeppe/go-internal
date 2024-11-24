@@ -181,7 +181,7 @@ type Params struct {
 	// script.
 	UpdateScripts bool
 
-	// RequireExplicitExec requires that commands passed to RunMain must be used
+	// RequireExplicitExec requires that commands passed to [Main] must be used
 	// in test scripts via `exec cmd` and not simply `cmd`. This can help keep
 	// consistency across test scripts as well as keep separate process
 	// executions explicit.

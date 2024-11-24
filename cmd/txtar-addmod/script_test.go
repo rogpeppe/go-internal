@@ -17,9 +17,9 @@ import (
 var proxyURL string
 
 func TestMain(m *testing.M) {
-	os.Exit(testscript.RunMain(gobinMain{m}, map[string]func() int{
-		"txtar-addmod": main1,
-	}))
+	testscript.Main(gobinMain{m}, map[string]func(){
+		"txtar-addmod": main,
+	})
 }
 
 type gobinMain struct {
