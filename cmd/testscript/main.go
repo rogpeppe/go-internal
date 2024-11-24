@@ -41,37 +41,28 @@ func (e *envVarsFlag) Set(v string) error {
 }
 
 func main() {
-	os.Exit(main1())
-}
-
-func main1() int {
 	switch err := mainerr(); err {
 	case nil:
-		return 0
-	case flag.ErrHelp:
-		return 2
 	default:
 		fmt.Fprintln(os.Stderr, err)
-		return 1
+		os.Exit(1)
 	}
 }
 
 func mainerr() (retErr error) {
-	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	fs.Usage = func() {
+	flag.Usage = func() {
 		mainUsage(os.Stderr)
+		os.Exit(2)
 	}
 	var envVars envVarsFlag
-	fUpdate := fs.Bool("u", false, "update archive file if a cmp fails")
-	fWork := fs.Bool("work", false, "print temporary work directory and do not remove when done")
-	fContinue := fs.Bool("continue", false, "continue running the script if an error occurs")
-	fVerbose := fs.Bool("v", false, "run tests verbosely")
-	fs.Var(&envVars, "e", "pass through environment variable to script (can appear multiple times)")
-	if err := fs.Parse(os.Args[1:]); err != nil {
-		return err
-	}
+	fUpdate := flag.Bool("u", false, "update archive file if a cmp fails")
+	fWork := flag.Bool("work", false, "print temporary work directory and do not remove when done")
+	fContinue := flag.Bool("continue", false, "continue running the script if an error occurs")
+	fVerbose := flag.Bool("v", false, "run tests verbosely")
+	flag.Var(&envVars, "e", "pass through environment variable to script (can appear multiple times)")
+	flag.Parse()
 
-	files := fs.Args()
+	files := flag.Args()
 	if len(files) == 0 {
 		files = []string{"-"}
 	}

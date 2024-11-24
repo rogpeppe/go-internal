@@ -51,6 +51,8 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// Note that here we still use RunMain, which is the older deprecated API,
+	// to sanity check that it works OK.
 	os.Exit(testscript.RunMain(m, map[string] func() int{
 		"foo": foo1,
 	}))

@@ -14,7 +14,7 @@ package main
 
 import (
 	"bytes"
-	stdflag "flag"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -25,11 +25,10 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 )
 
-var flag = stdflag.NewFlagSet(os.Args[0], stdflag.ContinueOnError)
-
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: txtar-c dir >saved.txtar\n")
 	flag.PrintDefaults()
+	os.Exit(2)
 }
 
 var (
@@ -38,17 +37,10 @@ var (
 )
 
 func main() {
-	os.Exit(main1())
-}
-
-func main1() int {
 	flag.Usage = usage
-	if flag.Parse(os.Args[1:]) != nil {
-		return 2
-	}
+	flag.Parse()
 	if flag.NArg() != 1 {
 		usage()
-		return 2
 	}
 
 	log.SetPrefix("txtar-c: ")
@@ -111,6 +103,4 @@ func main1() int {
 
 	data := txtar.Format(a)
 	os.Stdout.Write(data)
-
-	return 0
 }

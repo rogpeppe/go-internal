@@ -13,9 +13,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"txtar-x": main1,
-	}))
+	testscript.Main(m, map[string]func(){
+		"txtar-x": main,
+	})
 }
 
 func TestScripts(t *testing.T) {
