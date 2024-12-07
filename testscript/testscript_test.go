@@ -294,6 +294,19 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("cannot chdir: %v", err)
 				}
 			},
+			"printEnvPrefix": func(ts *TestScript, neg bool, args []string) {
+				if neg || len(args) != 1 {
+					ts.Fatalf("usage: printEnvPrefix <prefix>")
+				}
+
+				w := ts.Stdout()
+				prefix := args[0]
+				for _, kv := range ts.Environ() {
+					if strings.HasPrefix(kv, prefix) {
+						fmt.Fprintln(w, kv)
+					}
+				}
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := os.ReadDir(env.WorkDir)

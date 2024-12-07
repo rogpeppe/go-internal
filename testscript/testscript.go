@@ -982,7 +982,7 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 		return "", "", err
 	}
 	cmd.Dir = ts.cd
-	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	cmd.Env = append(ts.Environ(), "PWD="+ts.cd)
 	cmd.Stdin = strings.NewReader(ts.stdin)
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
@@ -1035,7 +1035,7 @@ func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd,
 		return nil, err
 	}
 	cmd.Dir = ts.cd
-	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	cmd.Env = append(ts.Environ(), "PWD="+ts.cd)
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdin = strings.NewReader(ts.stdin)
 	cmd.Stdout = &stdoutBuf
@@ -1243,6 +1243,14 @@ func (ts *TestScript) Setenv(key, value string) {
 // Getenv gets the value of the environment variable named by the key.
 func (ts *TestScript) Getenv(key string) string {
 	return ts.envMap[envvarname(key)]
+}
+
+// Environ returns a copy of environment variables set on the TestScript
+// as a series of key=value strings.
+func (ts *TestScript) Environ() []string {
+	env := make([]string, len(ts.env))
+	copy(env, ts.env)
+	return env
 }
 
 // parse parses a single line as a list of space-separated arguments
