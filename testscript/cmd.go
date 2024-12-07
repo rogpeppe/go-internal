@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,30 +27,31 @@ import (
 //
 // NOTE: If you make changes here, update doc.go.
 var scriptCmds = map[string]func(*TestScript, bool, []string){
-	"cd":       (*TestScript).cmdCd,
-	"chmod":    (*TestScript).cmdChmod,
-	"cmp":      (*TestScript).cmdCmp,
-	"cmpenv":   (*TestScript).cmdCmpenv,
-	"cp":       (*TestScript).cmdCp,
-	"env":      (*TestScript).cmdEnv,
-	"exec":     (*TestScript).cmdExec,
-	"exists":   (*TestScript).cmdExists,
-	"grep":     (*TestScript).cmdGrep,
-	"kill":     (*TestScript).cmdKill,
-	"mkdir":    (*TestScript).cmdMkdir,
-	"mv":       (*TestScript).cmdMv,
-	"rm":       (*TestScript).cmdRm,
-	"skip":     (*TestScript).cmdSkip,
-	"stderr":   (*TestScript).cmdStderr,
-	"stdin":    (*TestScript).cmdStdin,
-	"stdout":   (*TestScript).cmdStdout,
-	"ttyin":    (*TestScript).cmdTtyin,
-	"ttyout":   (*TestScript).cmdTtyout,
-	"stop":     (*TestScript).cmdStop,
-	"symlink":  (*TestScript).cmdSymlink,
-	"unix2dos": (*TestScript).cmdUNIX2DOS,
-	"unquote":  (*TestScript).cmdUnquote,
-	"wait":     (*TestScript).cmdWait,
+	"cd":        (*TestScript).cmdCd,
+	"chmod":     (*TestScript).cmdChmod,
+	"cmp":       (*TestScript).cmdCmp,
+	"cmpenv":    (*TestScript).cmdCmpenv,
+	"cp":        (*TestScript).cmdCp,
+	"env":       (*TestScript).cmdEnv,
+	"exec":      (*TestScript).cmdExec,
+	"exists":    (*TestScript).cmdExists,
+	"grep":      (*TestScript).cmdGrep,
+	"kill":      (*TestScript).cmdKill,
+	"mkdir":     (*TestScript).cmdMkdir,
+	"mv":        (*TestScript).cmdMv,
+	"rm":        (*TestScript).cmdRm,
+	"skip":      (*TestScript).cmdSkip,
+	"stderr":    (*TestScript).cmdStderr,
+	"stdin":     (*TestScript).cmdStdin,
+	"stdout":    (*TestScript).cmdStdout,
+	"ttyin":     (*TestScript).cmdTtyin,
+	"ttyout":    (*TestScript).cmdTtyout,
+	"stop":      (*TestScript).cmdStop,
+	"symlink":   (*TestScript).cmdSymlink,
+	"unix2dos":  (*TestScript).cmdUNIX2DOS,
+	"unquote":   (*TestScript).cmdUnquote,
+	"wait":      (*TestScript).cmdWait,
+	"waitmatch": (*TestScript).cmdWaitMatch,
 }
 
 // cd changes to a different directory.
@@ -237,14 +239,26 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 			ts.Fatalf("duplicate background process name %q", bgName)
 		}
 		var cmd *exec.Cmd
-		cmd, err = ts.execBackground(args[0], args[1:len(args)-1]...)
+		var outreader io.ReadCloser
+		cmd, outreader, err = ts.execBackground(args[0], args[1:len(args)-1]...)
 		if err == nil {
 			wait := make(chan struct{})
 			go func() {
 				waitOrStop(ts.ctxt, cmd, -1)
 				close(wait)
 			}()
-			ts.background = append(ts.background, backgroundCmd{bgName, cmd, wait, neg})
+			outbuf := new(strings.Builder)
+			ts.background = append(ts.background, backgroundCmd{
+				name:         bgName,
+				cmd:          cmd,
+				stdoutBuffer: outbuf,
+				stdoutReader: struct {
+					io.Reader
+					io.Closer
+				}{io.TeeReader(outreader, outbuf), outreader},
+				waitc: wait,
+				neg:   neg,
+			})
 		}
 		ts.stdout, ts.stderr = "", ""
 	} else {
@@ -567,9 +581,7 @@ func (ts *TestScript) waitBackgroundOne(bgName string) {
 	if bg == nil {
 		ts.Fatalf("unknown background process %q", bgName)
 	}
-	<-bg.wait
-	ts.stdout = bg.cmd.Stdout.(*strings.Builder).String()
-	ts.stderr = bg.cmd.Stderr.(*strings.Builder).String()
+	ts.stdout, ts.stderr = bg.wait()
 	if ts.stdout != "" {
 		fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
 	}
@@ -614,18 +626,15 @@ func (ts *TestScript) findBackground(bgName string) *backgroundCmd {
 func (ts *TestScript) waitBackground(checkStatus bool) {
 	var stdouts, stderrs []string
 	for _, bg := range ts.background {
-		<-bg.wait
+		cmdStdout, cmdStderr := bg.wait()
 
 		args := append([]string{filepath.Base(bg.cmd.Args[0])}, bg.cmd.Args[1:]...)
 		fmt.Fprintf(&ts.log, "[background] %s: %v\n", strings.Join(args, " "), bg.cmd.ProcessState)
 
-		cmdStdout := bg.cmd.Stdout.(*strings.Builder).String()
 		if cmdStdout != "" {
 			fmt.Fprintf(&ts.log, "[stdout]\n%s", cmdStdout)
 			stdouts = append(stdouts, cmdStdout)
 		}
-
-		cmdStderr := bg.cmd.Stderr.(*strings.Builder).String()
 		if cmdStderr != "" {
 			fmt.Fprintf(&ts.log, "[stderr]\n%s", cmdStderr)
 			stderrs = append(stderrs, cmdStderr)
@@ -650,6 +659,69 @@ func (ts *TestScript) waitBackground(checkStatus bool) {
 	ts.stdout = strings.Join(stdouts, "")
 	ts.stderr = strings.Join(stderrs, "")
 	ts.background = nil
+}
+
+// cmdWaitMatch waits until a background command prints a line to standard output
+// which matches the given regular expression. Once a match is found, the given
+// environment variable names are set to the subexpressions of the match.
+func (ts *TestScript) cmdWaitMatch(neg bool, args []string) {
+	if len(args) < 1 {
+		ts.Fatalf("usage: waitmatch name regexp [env-var...]")
+	}
+	if neg {
+		ts.Fatalf("unsupported: ! waitmatch")
+	}
+	bg := ts.findBackground(args[0])
+	if bg == nil {
+		ts.Fatalf("unknown background process %q", args[0])
+	}
+	rx, err := regexp.Compile(args[1])
+	ts.Check(err)
+	envs := args[2:]
+	if n := rx.NumSubexp(); n < len(envs) {
+		ts.Fatalf("cannot extract %d subexpressions into %d env vars", n, len(envs))
+	}
+	for {
+		line, err := readLine(bg.stdoutReader)
+		ts.Check(err)
+		m := rx.FindSubmatch(line)
+		if m != nil {
+			subm := m[1:]
+			for i, env := range envs {
+				ts.Setenv(env, string(subm[i]))
+			}
+		}
+		if err == io.EOF {
+			if m == nil {
+				ts.Fatalf("reached EOF without matching any line")
+			}
+			return
+		} else {
+			ts.Check(err)
+		}
+		if m != nil {
+			break
+		}
+	}
+}
+
+// readLine consumes enough bytes to read a line.
+func readLine(r io.Reader) ([]byte, error) {
+	var line []byte
+	for {
+		var buf [1]byte
+		n, err := r.Read(buf[:])
+		if n > 0 {
+			b := buf[0]
+			if b == '\n' {
+				return line, nil
+			}
+			line = append(line, b)
+		}
+		if err != nil {
+			return line, err
+		}
+	}
 }
 
 // scriptMatch implements both stdout and stderr.

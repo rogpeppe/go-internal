@@ -417,10 +417,27 @@ type TestScript struct {
 }
 
 type backgroundCmd struct {
-	name string
-	cmd  *exec.Cmd
-	wait <-chan struct{}
-	neg  bool // if true, cmd should fail
+	name         string
+	cmd          *exec.Cmd
+	stdoutReader io.ReadCloser    // a stdout pipe for waitmatch to read lines
+	stdoutBuffer *strings.Builder // all reads from stdoutReader are buffered here
+	test         io.ReadCloser
+	waitc        <-chan struct{}
+	neg          bool // if true, cmd should fail
+}
+
+func (b *backgroundCmd) wait() (stdout, stderr string) {
+	// Consume the rest of stdoutReader to fill stdoutBuffer.
+	io.Copy(io.Discard, b.stdoutReader)
+	b.stdoutReader.Close()
+	<-b.waitc
+	stdout = b.stdoutBuffer.String()
+	stderr = b.cmd.Stderr.(*strings.Builder).String()
+	return stdout, stderr
+}
+
+func (b *backgroundCmd) stderr() string {
+	return b.cmd.Stderr.(*strings.Builder).String()
 }
 
 func writeFile(name string, data []byte, perm fs.FileMode, excl bool) error {
@@ -574,7 +591,7 @@ func (ts *TestScript) run() {
 			ts.waitBackground(false)
 		} else {
 			for _, bg := range ts.background {
-				<-bg.wait
+				bg.wait()
 			}
 			ts.background = nil
 		}
@@ -1026,22 +1043,26 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 
 // execBackground starts the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env.
-func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, io.ReadCloser, error) {
 	if ts.ttyin != "" {
-		return nil, errors.New("ttyin is not supported by background commands")
+		return nil, nil, errors.New("ttyin is not supported by background commands")
 	}
 	cmd, err := ts.buildExecCmd(command, args...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
-	var stdoutBuf, stderrBuf strings.Builder
+	var stderrBuf strings.Builder
 	cmd.Stdin = strings.NewReader(ts.stdin)
-	cmd.Stdout = &stdoutBuf
+	stdoutr, stdoutw, err := os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	cmd.Stdout = stdoutw
 	cmd.Stderr = &stderrBuf
 	ts.stdin = ""
-	return cmd, cmd.Start()
+	return cmd, stdoutr, cmd.Start()
 }
 
 func (ts *TestScript) buildExecCmd(command string, args ...string) (*exec.Cmd, error) {
@@ -1142,6 +1163,9 @@ func waitOrStop(ctx context.Context, cmd *exec.Cmd, killDelay time.Duration) err
 	}()
 
 	waitErr := cmd.Wait()
+	if f, ok := cmd.Stdout.(*os.File); ok {
+		f.Close()
+	}
 	if interruptErr := <-errc; interruptErr != nil {
 		return interruptErr
 	}
