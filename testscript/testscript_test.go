@@ -295,6 +295,29 @@ func TestScripts(t *testing.T) {
 				}
 			},
 		},
+		Condition: func(cond string) (bool, error) {
+			// Assume condition name and args are separated by colon (":")
+			args := strings.Split(cond, ":")
+			name := args[0]
+			switch name {
+			case "is_upper":
+				if len(args) < 2 {
+					return false, fmt.Errorf("syntax: [is_upper:word]")
+				}
+				return strings.ToUpper(args[1]) == args[1], nil
+			case "is_lower":
+				if len(args) < 2 {
+					return false, fmt.Errorf("syntax: [is_lower:word]")
+				}
+				return strings.ToLower(args[1]) == args[1], nil
+			case "always_true":
+				return true, nil
+			case "always_false":
+				return false, nil
+			default:
+				return false, fmt.Errorf("unrecognized condition %s", name)
+			}
+		},
 		Setup: func(env *Env) error {
 			infos, err := os.ReadDir(env.WorkDir)
 			if err != nil {
