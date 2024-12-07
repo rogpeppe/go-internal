@@ -62,13 +62,9 @@ func fatalf(format string, args ...interface{}) {
 
 const goCmd = "go"
 
-func main() {
-	os.Exit(main1())
-}
-
 var allFiles = flag.Bool("all", false, "include all source files")
 
-func main1() int {
+func main() {
 	flag.Usage = usage
 	flag.Parse()
 	if flag.NArg() < 2 {
@@ -211,5 +207,5 @@ func main1() int {
 		}
 	}
 	os.RemoveAll(tmpdir)
-	return exitCode
+	os.Exit(exitCode)
 }
