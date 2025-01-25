@@ -1,0 +1,8 @@
+env FOO_A=1 FOO_B=2 FOO_C=3
+printEnvPrefix FOO_
+cmp stdout want.txt
+
+-- want.txt --
+FOO_A=1
+FOO_B=2
+FOO_C=3
