@@ -184,11 +184,11 @@ type runT struct {
 	failed        atomic.Bool
 }
 
-func (r *runT) Skip(is ...interface{}) {
+func (r *runT) Skip(is ...any) {
 	panic(skipRun)
 }
 
-func (r *runT) Fatal(is ...interface{}) {
+func (r *runT) Fatal(is ...any) {
 	r.Log(is...)
 	r.FailNow()
 }
@@ -197,7 +197,7 @@ func (r *runT) Parallel() {
 	// TODO run tests in parallel.
 }
 
-func (r *runT) Log(is ...interface{}) {
+func (r *runT) Log(is ...any) {
 	msg := fmt.Sprint(is...)
 	if r.stdinTempFile != "" {
 		msg = strings.ReplaceAll(msg, r.stdinTempFile, "<stdin>")
