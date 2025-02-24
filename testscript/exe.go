@@ -50,50 +50,54 @@ func Main(m TestingM, commands map[string]func()) {
 	if mainf == nil {
 		// Unknown command; this is just the top-level execution of the
 		// test binary by "go test".
-
-		// Set up all commands in a directory, added in $PATH.
-		tmpdir, err := os.MkdirTemp("", "testscript-main")
-		if err != nil {
-			log.Fatalf("could not set up temporary directory: %v", err)
-		}
-		defer func() {
-			if err := os.RemoveAll(tmpdir); err != nil {
-				log.Fatalf("cannot delete temporary directory: %v", err)
-			}
-		}()
-		bindir := filepath.Join(tmpdir, "bin")
-		if err := os.MkdirAll(bindir, 0o777); err != nil {
-			log.Fatalf("could not set up PATH binary directory: %v", err)
-		}
-		os.Setenv("PATH", bindir+string(filepath.ListSeparator)+os.Getenv("PATH"))
-
-		// We're not in a subcommand.
-		for name := range commands {
-			// Set up this command in the directory we added to $PATH.
-			binfile := filepath.Join(bindir, name)
-			if runtime.GOOS == "windows" {
-				binfile += ".exe"
-			}
-			binpath, err := os.Executable()
-			if err == nil {
-				err = copyBinary(binpath, binfile)
-			}
-			if err != nil {
-				log.Fatalf("could not set up %s in $PATH: %v", name, err)
-			}
-			scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
-				if ts.params.RequireExplicitExec {
-					ts.Fatalf("use 'exec %s' rather than '%s' (because RequireExplicitExec is enabled)", name, name)
-				}
-				ts.cmdExec(neg, append([]string{name}, args...))
-			}
-		}
-		os.Exit(m.Run())
+		os.Exit(testingMRun(m, commands))
 	}
 	// The command being registered is being invoked, so run it, then exit.
 	os.Args[0] = cmdName
 	mainf()
 	os.Exit(0)
+}
+
+// testingMRun exists just so that we can use `defer`, given that [Main] above uses [os.Exit].
+func testingMRun(m TestingM, commands map[string]func()) int {
+	// Set up all commands in a directory, added in $PATH.
+	tmpdir, err := os.MkdirTemp("", "testscript-main")
+	if err != nil {
+		log.Fatalf("could not set up temporary directory: %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpdir); err != nil {
+			log.Fatalf("cannot delete temporary directory: %v", err)
+		}
+	}()
+	bindir := filepath.Join(tmpdir, "bin")
+	if err := os.MkdirAll(bindir, 0o777); err != nil {
+		log.Fatalf("could not set up PATH binary directory: %v", err)
+	}
+	os.Setenv("PATH", bindir+string(filepath.ListSeparator)+os.Getenv("PATH"))
+
+	// We're not in a subcommand.
+	for name := range commands {
+		// Set up this command in the directory we added to $PATH.
+		binfile := filepath.Join(bindir, name)
+		if runtime.GOOS == "windows" {
+			binfile += ".exe"
+		}
+		binpath, err := os.Executable()
+		if err == nil {
+			err = copyBinary(binpath, binfile)
+		}
+		if err != nil {
+			log.Fatalf("could not set up %s in $PATH: %v", name, err)
+		}
+		scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
+			if ts.params.RequireExplicitExec {
+				ts.Fatalf("use 'exec %s' rather than '%s' (because RequireExplicitExec is enabled)", name, name)
+			}
+			ts.cmdExec(neg, append([]string{name}, args...))
+		}
+	}
+	return m.Run()
 }
 
 // Deprecated: use [Main], as the only reason for returning exit codes
