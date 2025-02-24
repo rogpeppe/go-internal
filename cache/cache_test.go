@@ -80,7 +80,7 @@ func TestGrowth(t *testing.T) {
 		n = 10
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if err := c.putIndexEntry(dummyID(i), dummyID(i*99), int64(i)*101, true); err != nil {
 			t.Fatalf("addIndexEntry: %v", err)
 		}
@@ -93,7 +93,7 @@ func TestGrowth(t *testing.T) {
 			t.Errorf("Get(%x) = %x, %d, want %x, %d", id, entry.OutputID, entry.Size, dummyID(i*99), int64(i)*101)
 		}
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		id := ActionID(dummyID(i))
 		entry, err := c.Get(id)
 		if err != nil {

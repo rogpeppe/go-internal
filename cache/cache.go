@@ -55,7 +55,7 @@ func Open(dir string) (*Cache, error) {
 	if !info.IsDir() {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
 	}
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
 		if err := os.MkdirAll(name, 0777); err != nil {
 			return nil, err
@@ -332,7 +332,7 @@ func (c *Cache) Trim() error {
 	// We subtract an additional mtimeInterval
 	// to account for the imprecision of our "last used" mtimes.
 	cutoff := now.Add(-trimLimit - mtimeInterval)
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
 		c.trimSubdir(subdir, cutoff)
 	}

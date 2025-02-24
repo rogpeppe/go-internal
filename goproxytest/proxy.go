@@ -239,7 +239,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 			zip []byte
 			err error
 		}
-		c := srv.zipCache.Do(a, func() interface{} {
+		c := srv.zipCache.Do(a, func() any {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
@@ -305,7 +305,7 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	name := filepath.Join(srv.dir, prefix+"_"+encVers)
 	txtName := name + ".txt"
 	txtarName := name + ".txtar"
-	a := srv.archiveCache.Do(name, func() interface{} {
+	a := srv.archiveCache.Do(name, func() any {
 		a, err := txtar.ParseFile(txtarName)
 		if os.IsNotExist(err) {
 			// fall back to trying with the .txt extension

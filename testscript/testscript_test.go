@@ -128,7 +128,7 @@ func TestEnv(t *testing.T) {
 		"=",
 		"key=invalid",
 	} {
-		var panicValue interface{}
+		var panicValue any
 		func() {
 			defer func() {
 				panicValue = recover()
@@ -466,7 +466,7 @@ func waitFile(ts *TestScript, neg bool, args []string) {
 		ts.Fatalf("usage: waitfile file")
 	}
 	path := ts.MkAbs(args[0])
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		_, err := os.Stat(path)
 		if err == nil {
 			return
@@ -487,18 +487,18 @@ type fakeT struct {
 
 var errAbort = errors.New("abort test")
 
-func (t *fakeT) Skip(args ...interface{}) {
+func (t *fakeT) Skip(args ...any) {
 	panic(errAbort)
 }
 
-func (t *fakeT) Fatal(args ...interface{}) {
+func (t *fakeT) Fatal(args ...any) {
 	t.Log(args...)
 	t.FailNow()
 }
 
 func (t *fakeT) Parallel() {}
 
-func (t *fakeT) Log(args ...interface{}) {
+func (t *fakeT) Log(args ...any) {
 	fmt.Fprint(&t.log, args...)
 }
 

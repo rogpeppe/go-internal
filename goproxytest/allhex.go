@@ -8,7 +8,7 @@ package goproxytest
 
 // allHex reports whether the revision rev is entirely lower-case hexadecimal digits.
 func allHex(rev string) bool {
-	for i := 0; i < len(rev); i++ {
+	for i := range len(rev) {
 		c := rev[i]
 		if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' {
 			continue
