@@ -622,6 +622,14 @@ func (ts *TestScript) run() {
 				rewind()
 				markTime()
 			}
+
+			// "Reset" verbose in the case that we are using ContinueOnError
+			// so that the next block only shows verbose output in case it
+			// is also in error. This ensures that later blocks that are not
+			// in error, do not needlessly show verbose output because of an
+			// earlier block that was in error.
+			verbose = ts.t.Verbose()
+
 			// Print phase heading and mark start of phase output.
 			fmt.Fprintf(&ts.log, "%s\n", line)
 			ts.mark = ts.log.Len()
