@@ -26,11 +26,14 @@ printargs section3
 status 1
 
 # comment 4
-printargs section3
+printargs section4
 
 # comment 5
 printargs section5
 status 1
+
+# comment 6
+printargs section6
 
 -- expect-stdout.txt --
 ** RUN testscript **
@@ -79,6 +82,10 @@ FAIL: $$WORK${/}scripts${/}testscript.txt:9: unexpected command failure
 > status 1
 [exit status 1]
 FAIL: $$WORK${/}scripts${/}testscript.txt:16: unexpected command failure
+# comment 6 (0.000s)
+> printargs section6
+[stdout]
+["printargs" "section6"]
 -- expect-stdout-vc.txt --
 ** RUN testscript **
 # comment 1 (0.000s)
@@ -97,9 +104,9 @@ FAIL: $$WORK${/}scripts${/}testscript.txt:16: unexpected command failure
 [exit status 1]
 FAIL: $$WORK${/}scripts${/}testscript.txt:9: unexpected command failure
 # comment 4 (0.000s)
-> printargs section3
+> printargs section4
 [stdout]
-["printargs" "section3"]
+["printargs" "section4"]
 # comment 5 (0.000s)
 > printargs section5
 [stdout]
@@ -107,3 +114,7 @@ FAIL: $$WORK${/}scripts${/}testscript.txt:9: unexpected command failure
 > status 1
 [exit status 1]
 FAIL: $$WORK${/}scripts${/}testscript.txt:16: unexpected command failure
+# comment 6 (0.000s)
+> printargs section6
+[stdout]
+["printargs" "section6"]
