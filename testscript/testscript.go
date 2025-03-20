@@ -561,6 +561,12 @@ func (ts *TestScript) run() {
 	}
 
 	failed := false
+
+	// lastBlockFailed tracks the failure state of the last block.
+	// This allows us to rewind the last block if it didn't fail,
+	// but an earlier block _did_ fail, in the case of ContinueOnError.
+	lastBlockFailed := false
+
 	defer func() {
 		// On a normal exit from the test loop, background processes are cleaned up
 		// before we print PASS. If we return early (e.g., due to a test failure),
@@ -629,6 +635,7 @@ func (ts *TestScript) run() {
 			// in error, do not needlessly show verbose output because of an
 			// earlier block that was in error.
 			verbose = ts.t.Verbose()
+			lastBlockFailed = false
 
 			// Print phase heading and mark start of phase output.
 			fmt.Fprintf(&ts.log, "%s\n", line)
@@ -640,6 +647,7 @@ func (ts *TestScript) run() {
 		ok := ts.runLine(line)
 		if !ok {
 			failed = true
+			lastBlockFailed = true
 			if ts.params.ContinueOnError {
 				verbose = true
 			} else {
@@ -664,6 +672,10 @@ func (ts *TestScript) run() {
 	// Once we've reached the end of the script, ignore the status of background commands.
 	ts.waitBackground(false)
 
+	if !lastBlockFailed {
+		rewind()
+	}
+
 	// If we reached here but we've failed (probably because ContinueOnError
 	// was set), don't wipe the log and print "PASS".
 	if failed {
@@ -671,7 +683,6 @@ func (ts *TestScript) run() {
 	}
 
 	// Final phase ended.
-	rewind()
 	markTime()
 	if !ts.stopped {
 		fmt.Fprintf(&ts.log, "PASS\n")
