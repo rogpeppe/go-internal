@@ -72,9 +72,6 @@ FAIL: $$WORK${/}scripts${/}testscript.txt:9: unexpected command failure
 [exit status 1]
 FAIL: $$WORK${/}scripts${/}testscript.txt:9: unexpected command failure
 # comment 4 (0.000s)
-> printargs section3
-[stdout]
-["printargs" "section3"]
 # comment 5 (0.000s)
 > printargs section5
 [stdout]
