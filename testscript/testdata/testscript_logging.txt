@@ -83,9 +83,6 @@ FAIL: $$WORK${/}scripts${/}testscript.txt:9: unexpected command failure
 [exit status 1]
 FAIL: $$WORK${/}scripts${/}testscript.txt:16: unexpected command failure
 # comment 6 (0.000s)
-> printargs section6
-[stdout]
-["printargs" "section6"]
 -- expect-stdout-vc.txt --
 ** RUN testscript **
 # comment 1 (0.000s)
