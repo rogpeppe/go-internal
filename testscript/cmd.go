@@ -111,6 +111,11 @@ func (ts *TestScript) cmdCmpenv(neg bool, args []string) {
 
 func (ts *TestScript) doCmdCmp(neg bool, args []string, env bool) {
 	name1, name2 := args[0], args[1]
+	if name1 == name2 {
+		// It's surprisingly easy to do e.g. `cmp foo.go foo.go` rather than
+		// `cmp foo.go foo.go.want`; protect against such obvious cases.
+		ts.Fatalf("cmp: cannot compare a file against itself")
+	}
 	text1 := ts.ReadFile(name1)
 
 	absName2 := ts.MkAbs(name2)
