@@ -39,6 +39,13 @@ The most popular package here is the [testscript](https://pkg.go.dev/github.com/
  * Accompanied by a [testscript](https://github.com/rogpeppe/go-internal/tree/master/cmd/testscript) command
  for running standalone scripts with files embedded in txtar format.
  
- A nice introduction to using testscripts is this [blog post](https://bitfieldconsulting.com/golang/test-scripts) series.
- Both testscript and txtar were [originally created](https://github.com/golang/go/commit/5890e25b7ccb2d2249b2f8a02ef5dbc36047868b)
- by Russ Cox.
+A nice introduction to using testscripts is this [blog post](https://bitfieldconsulting.com/golang/test-scripts) series.
+Both testscript and txtar were [originally created](https://github.com/golang/go/commit/5890e25b7ccb2d2249b2f8a02ef5dbc36047868b)
+by Russ Cox.
+
+`testscript` is [packaged for Homebrew](https://github.com/Homebrew/homebrew-core/blob/master/Formula/t/testscript.rb)
+and can be installed with:
+
+```sh
+brew install testscript
+```
