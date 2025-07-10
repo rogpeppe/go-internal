@@ -5,9 +5,12 @@
 package testscript
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -56,6 +59,49 @@ func Main(m TestingM, commands map[string]func()) {
 	os.Args[0] = cmdName
 	mainf()
 	os.Exit(0)
+}
+
+// GoTool exposes a Go program added to the module being tested via `go get -tool`,
+// which can then be run via `go tool $name` and leverage Go's module and build caches.
+// This function must be run as part of [Main]; for example, after setting up the tool
+// via `go get -tool golang.org/x/tools/cmd/stringer`:
+//
+//	testscript.Main(m, map[string]func(){
+//		"stringer": testscript.GoTool("stringer"),
+//	})
+func GoTool(name string) func() {
+	// Since [Main] only takes a map[string]func() as a parameter, we cannot store the path
+	// to the cached tool anywhere, so we resort to setting one env var per tool.
+	// This is not ideal, but it works.
+	//
+	// We could also directly copy the cached tool binary into the $PATH that testscript sets up,
+	// to avoid an indirection via the test binary to use os/exec below.
+	// However, this again is very difficult given the current API of [Main].
+	//
+	// TODO: rethink in a future iteration of the API.
+	envName := "TESTSCRIPT_GO_TOOL_" + name
+	cachedBin := os.Getenv(envName)
+	if cachedBin == "" {
+		cmd := exec.Command("go", "tool", "-n", name)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatalf("failed to run %v: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+		}
+		os.Setenv(envName, string(bytes.TrimSpace(out)))
+	}
+	return func() {
+		cmd := exec.Command(cachedBin, os.Args[1:]...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			if err, ok := err.(*exec.ExitError); ok {
+				os.Exit(err.ExitCode())
+			}
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
 }
 
 // testingMRun exists just so that we can use `defer`, given that [Main] above uses [os.Exit].
