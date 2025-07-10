@@ -1,0 +1,20 @@
+# We test the integration with `go tool X` with stringer, because it's contained
+# by an existing dependency of ours in the form of x/tools.
+# Moreover, it's a fairly simple tool to use, and given that it takes a relative
+# path as an argument, it will catch whether the current directory is correct.
+
+env GOCACHE=${WORK}/.gocache
+
+stringer -type Foo foo.go
+exists foo_string.go
+
+-- foo.go --
+package foo
+
+type Foo int
+
+const (
+	_ Foo = iota
+	Foo1
+	Foo2
+)

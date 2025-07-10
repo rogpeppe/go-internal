@@ -81,6 +81,7 @@ func TestMain(m *testing.M) {
 		"status":         exitWithStatus,
 		"signalcatcher":  signalCatcher,
 		"terminalprompt": terminalPrompt,
+		"stringer":       GoTool("stringer"),
 	})
 }
 
