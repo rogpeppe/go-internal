@@ -494,16 +494,10 @@ func (ts *TestScript) setup() string {
 			env.Vars = append(env.Vars, name+"="+val)
 		}
 	}
-	// Must preserve SYSTEMROOT on Windows: https://github.com/golang/go/issues/25513 et al
 	if runtime.GOOS == "windows" {
-		env.Vars = append(env.Vars,
-			"SYSTEMROOT="+os.Getenv("SYSTEMROOT"),
-			"exe=.exe",
-		)
+		env.Vars = append(env.Vars, "exe=.exe")
 	} else {
-		env.Vars = append(env.Vars,
-			"exe=",
-		)
+		env.Vars = append(env.Vars, "exe=")
 	}
 	ts.cd = env.Cd
 	// Unpack archive.
