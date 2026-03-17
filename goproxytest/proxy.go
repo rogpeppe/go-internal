@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"iter"
 	"log"
 	"net"
 	"net/http"
@@ -148,6 +149,44 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/mod/")
+	if enc, ok := strings.CutSuffix(path, "/@latest"); ok {
+		modPath, err := module.UnescapePath(enc)
+		if err != nil {
+			srv.logf("go proxy_test: %v\n", err)
+			http.NotFound(w, r)
+			return
+		}
+		best := latestVersion(func(yield func(string) bool) {
+			for _, m := range srv.modList {
+				if m.Path != modPath {
+					continue
+				}
+				if err := module.Check(m.Path, m.Version); err != nil {
+					continue
+				}
+				if !yield(m.Version) {
+					return
+				}
+			}
+		})
+		if best == "" {
+			http.NotFound(w, r)
+			return
+		}
+		a := srv.readArchive(modPath, best)
+		if a == nil {
+			http.NotFound(w, r)
+			return
+		}
+		for _, f := range a.Files {
+			if f.Name == ".info" {
+				w.Write(f.Data)
+				return
+			}
+		}
+		http.NotFound(w, r)
+		return
+	}
 	i := strings.Index(path, "/@v/")
 	if i < 0 {
 		http.NotFound(w, r)
@@ -346,4 +385,23 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 		return a
 	}).(*txtar.Archive)
 	return a
+}
+
+// latestVersion returns the latest version from the given sequence,
+// preferring release versions over pre-release versions.
+// It returns the empty string if the sequence is empty.
+func latestVersion(versions iter.Seq[string]) string {
+	var bestRelease, bestAny string
+	for v := range versions {
+		if semver.Prerelease(v) == "" && (bestRelease == "" || semver.Compare(v, bestRelease) > 0) {
+			bestRelease = v
+		}
+		if bestAny == "" || semver.Compare(v, bestAny) > 0 {
+			bestAny = v
+		}
+	}
+	if bestRelease != "" {
+		return bestRelease
+	}
+	return bestAny
 }
