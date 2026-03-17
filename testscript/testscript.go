@@ -531,8 +531,8 @@ func (ts *TestScript) setup() string {
 
 	ts.envMap = make(map[string]string)
 	for _, kv := range ts.env {
-		if i := strings.Index(kv, "="); i >= 0 {
-			ts.envMap[envvarname(kv[:i])] = kv[i+1:]
+		if before, after, ok := strings.Cut(kv, "="); ok {
+			ts.envMap[envvarname(before)] = after
 		}
 	}
 	return string(a.Comment)
@@ -609,8 +609,8 @@ func (ts *TestScript) run() {
 		// Extract next line.
 		ts.lineno++
 		var line string
-		if i := strings.Index(script, "\n"); i >= 0 {
-			line, script = script[:i], script[i+1:]
+		if before, after, ok := strings.Cut(script, "\n"); ok {
+			line, script = before, after
 		} else {
 			line, script = script, ""
 		}

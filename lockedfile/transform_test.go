@@ -42,7 +42,7 @@ func TestTransform(t *testing.T) {
 
 	const maxChunkWords = 8 << 10
 	buf := make([]byte, 2*maxChunkWords*8)
-	for i := uint64(0); i < 2*maxChunkWords; i++ {
+	for i := range uint64(2 * maxChunkWords) {
 		binary.LittleEndian.PutUint64(buf[i*8:], i)
 	}
 	if err := lockedfile.Write(path, bytes.NewReader(buf[:8]), 0666); err != nil {

@@ -31,8 +31,8 @@ type Hash struct {
 // stripExperiment strips any GOEXPERIMENT configuration from the Go
 // version string.
 func stripExperiment(version string) string {
-	if i := strings.Index(version, " X:"); i >= 0 {
-		return version[:i]
+	if before, _, ok := strings.Cut(version, " X:"); ok {
+		return before
 	}
 	return version
 }

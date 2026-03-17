@@ -91,10 +91,3 @@ func editDistance(a, b []rune) int {
 	}
 	return m
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

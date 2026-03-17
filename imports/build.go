@@ -99,10 +99,10 @@ func matchTags(name string, tags map[string]bool) bool {
 	if name == "" {
 		return false
 	}
-	if i := strings.Index(name, ","); i >= 0 {
+	if before, after, ok := strings.Cut(name, ","); ok {
 		// comma-separated list
-		ok1 := matchTags(name[:i], tags)
-		ok2 := matchTags(name[i+1:], tags)
+		ok1 := matchTags(before, tags)
+		ok2 := matchTags(after, tags)
 		return ok1 && ok2
 	}
 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
@@ -200,13 +200,13 @@ var (
 )
 
 func init() {
-	for _, v := range strings.Fields(goosList) {
+	for v := range strings.FieldsSeq(goosList) {
 		KnownOS[v] = true
 	}
-	for _, v := range strings.Fields(unixList) {
+	for v := range strings.FieldsSeq(unixList) {
 		UnixOS[v] = true
 	}
-	for _, v := range strings.Fields(goarchList) {
+	for v := range strings.FieldsSeq(goarchList) {
 		KnownArch[v] = true
 	}
 }

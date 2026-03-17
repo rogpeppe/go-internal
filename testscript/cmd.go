@@ -218,13 +218,13 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 		return
 	}
 	for _, env := range args {
-		i := strings.Index(env, "=")
-		if i < 0 {
+		before, after, ok := strings.Cut(env, "=")
+		if !ok {
 			// Display value instead of setting it.
 			ts.Logf("%s=%s\n", env, ts.Getenv(env))
 			continue
 		}
-		ts.Setenv(env[:i], env[i+1:])
+		ts.Setenv(before, after)
 	}
 }
 
