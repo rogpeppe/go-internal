@@ -30,3 +30,50 @@ func TestScripts(t *testing.T) {
 	}
 	testscript.Run(t, p)
 }
+
+func TestSetup(t *testing.T) {
+	t.Run("with_proxy", func(t *testing.T) {
+		p := testscript.Params{
+			Files: []string{
+				filepath.Join("testdata", "setup", "with_proxy.txt"),
+			},
+		}
+		if err := gotooltest.Setup(&p); err != nil {
+			t.Fatal(err)
+		}
+		goproxytest.Setup(&p)
+		testscript.Run(t, p)
+	})
+	t.Run("no_proxy", func(t *testing.T) {
+		p := testscript.Params{
+			Files: []string{
+				filepath.Join("testdata", "setup", "no_proxy.txt"),
+			},
+			Setup: func(e *testscript.Env) error {
+				e.Vars = append(e.Vars, "GOPROXY=original")
+				return nil
+			},
+		}
+		if err := gotooltest.Setup(&p); err != nil {
+			t.Fatal(err)
+		}
+		goproxytest.Setup(&p)
+		testscript.Run(t, p)
+	})
+	t.Run("chained", func(t *testing.T) {
+		p := testscript.Params{
+			Files: []string{
+				filepath.Join("testdata", "setup", "chained.txt"),
+			},
+			Setup: func(e *testscript.Env) error {
+				e.Vars = append(e.Vars, "CUSTOM=hello")
+				return nil
+			},
+		}
+		if err := gotooltest.Setup(&p); err != nil {
+			t.Fatal(err)
+		}
+		goproxytest.Setup(&p)
+		testscript.Run(t, p)
+	})
+}

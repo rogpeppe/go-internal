@@ -11,20 +11,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 
 	"github.com/rogpeppe/go-internal/goproxytest"
 	"github.com/rogpeppe/go-internal/gotooltest"
 	"github.com/rogpeppe/go-internal/testscript"
-)
-
-const (
-	// goModProxyDir is the special subdirectory in a txtar script's supporting files
-	// within which we expect to find github.com/rogpeppe/go-internal/goproxytest
-	// directories.
-	goModProxyDir = ".gomodproxy"
 )
 
 type envVarsFlag struct {
@@ -120,6 +112,7 @@ func mainerr() (retErr error) {
 			return fmt.Errorf("failed to setup go tool: %v", err)
 		}
 	}
+	goproxytest.Setup(&p)
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
 		if err := origSetup(env); err != nil {
@@ -127,21 +120,6 @@ func mainerr() (retErr error) {
 		}
 		if *fWork {
 			env.T().Log("temporary work directory: ", env.WorkDir)
-		}
-		proxyDir := filepath.Join(env.WorkDir, goModProxyDir)
-		if info, err := os.Stat(proxyDir); err == nil && info.IsDir() {
-			srv, err := goproxytest.NewServer(proxyDir, "")
-			if err != nil {
-				return fmt.Errorf("cannot start Go proxy: %v", err)
-			}
-			env.Defer(srv.Close)
-
-			// Add GOPROXY after calling the original setup
-			// so that it overrides any GOPROXY set there.
-			env.Vars = append(env.Vars,
-				"GOPROXY="+srv.URL,
-				"GONOSUMDB=*",
-			)
 		}
 		for _, v := range envVars.vals {
 			varName, _, ok := strings.Cut(v, "=")

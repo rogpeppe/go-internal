@@ -1,0 +1,7 @@
+# Verify that goproxytest.Setup does not set GOPROXY
+# when there's no .gomodproxy directory.
+go env GOPROXY
+stdout ^original$
+
+-- go.mod --
+module mod
