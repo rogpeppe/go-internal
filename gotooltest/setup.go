@@ -8,7 +8,6 @@ package gotooltest
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,6 +17,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rogpeppe/go-internal/internal/goenv"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -74,18 +74,9 @@ func initGoEnv() (err error) {
 	tagStr = strings.Trim(tagStr, "[]")
 	goEnv.releaseTags = strings.Split(tagStr, " ")
 
-	eout, stderr, err := run("go", "env", "-json",
-		"GOROOT",
-		"GOCACHE",
-		"GOPROXY",
-	)
-	if err != nil {
-		return fmt.Errorf("failed to determine environment from go command: %v\n%v", err, stderr)
+	if err := goenv.Unmarshal(&goEnv); err != nil {
+		return err
 	}
-	if err := json.Unmarshal(eout.Bytes(), &goEnv); err != nil {
-		return fmt.Errorf("failed to unmarshal GOROOT and GOCACHE tags from go command out: %v\n%v", err, eout)
-	}
-
 	version := goEnv.releaseTags[len(goEnv.releaseTags)-1]
 	if !goVersionRegex.MatchString(version) {
 		return fmt.Errorf("invalid go version %q", version)

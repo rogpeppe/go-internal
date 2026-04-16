@@ -95,7 +95,7 @@ func newServer(dir, addr string, logf func(string, ...any)) (*Server, error) {
 	srv.URL = "http://" + addr + "/mod"
 	go func() {
 		if err := srv.server.Serve(l); err != nil && err != http.ErrServerClosed {
-			srv.logf("go proxy: http.Serve: %v", err)
+			srv.logf("go proxy_test http.Serve: %v", err)
 		}
 	}()
 	return &srv, nil
@@ -258,7 +258,6 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		// to resolve github.com, github.com/hello and github.com/hello/world.
 		// cmd/go expects a 404/410 response if there is nothing there. Hence we
 		// cannot return with a 500.
-		srv.logf("go proxy: no archive %s %s\n", path, vers)
 		http.NotFound(w, r)
 		return
 	}
@@ -300,7 +299,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}).(cached)
 
 		if c.err != nil {
-			srv.logf("go proxy: %v\n", c.err)
+			srv.logf("go proxy_test %v\n", c.err)
 			http.Error(w, c.err.Error(), 500)
 			return
 		}
@@ -331,12 +330,12 @@ func (srv *Server) findHash(m module.Version) string {
 func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	enc, err := module.EscapePath(path)
 	if err != nil {
-		srv.logf("go proxy: %v\n", err)
+		srv.logf("go proxy_test %v\n", err)
 		return nil
 	}
 	encVers, err := module.EscapeVersion(vers)
 	if err != nil {
-		srv.logf("go proxy: %v\n", err)
+		srv.logf("go proxy_test %v\n", err)
 		return nil
 	}
 
@@ -378,7 +377,7 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 		}
 		if err != nil {
 			if !os.IsNotExist(err) {
-				srv.logf("go proxy: %v\n", err)
+				srv.logf("go proxy_test %v\n", err)
 			}
 			a = nil
 		}
