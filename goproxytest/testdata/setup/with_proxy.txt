@@ -11,12 +11,6 @@ go get -d fruit.com@v1.0.0
 -- go.mod --
 module mod
 
--- .gomodproxy/fruit.com_v1.0.0/.mod --
-module fruit.com
-
--- .gomodproxy/fruit.com_v1.0.0/.info --
-{"Version":"v1.0.0","Time":"2018-10-22T18:45:39Z"}
-
 -- .gomodproxy/fruit.com_v1.0.0/go.mod --
 module fruit.com
 

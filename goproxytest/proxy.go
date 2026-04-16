@@ -9,12 +9,16 @@ servers and also to make them significantly faster.
 
 Each module archive is either a file named path_vers.txtar or path_vers.txt, or
 a directory named path_vers, where slashes in path have been replaced with underscores.
-The archive or directory must contain two files ".info" and ".mod", to be served as
+The archive or directory may contain files ".info" and ".mod", to be served as
 the info and mod files in the proxy protocol (see
-https://research.swtch.com/vgo-module).  The remaining files are served as the
-content of the module zip file.  The path@vers prefix required of files in the
-zip file is added automatically by the proxy: the files in the archive have
-names without the prefix, like plain "go.mod", "x.go", and so on.
+https://research.swtch.com/vgo-module). If ".mod" is not present, the
+content of the "go.mod" file is used. If ".info" is not present,
+it is synthesized from the version with the Unix epoch as timestamp.
+
+The remaining files are served as the content of the module zip file.
+The path@vers prefix required of files in the zip file is added
+automatically by the proxy: the files in the archive have names without
+the prefix, like plain "go.mod", "x.go", and so on.
 
 See ../cmd/txtar-addmod and ../cmd/txtar-c for tools generate txtar
 files, although it's fine to write them by hand.
@@ -95,7 +99,7 @@ func newServer(dir, addr string, logf func(string, ...any)) (*Server, error) {
 	srv.URL = "http://" + addr + "/mod"
 	go func() {
 		if err := srv.server.Serve(l); err != nil && err != http.ErrServerClosed {
-			srv.logf("go proxy_test http.Serve: %v", err)
+			srv.logf("go proxy_test: http.Serve: %v", err)
 		}
 	}()
 	return &srv, nil
@@ -299,7 +303,7 @@ func (srv *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}).(cached)
 
 		if c.err != nil {
-			srv.logf("go proxy_test %v\n", c.err)
+			srv.logf("go proxy_test: %v\n", c.err)
 			http.Error(w, c.err.Error(), 500)
 			return
 		}
@@ -330,12 +334,12 @@ func (srv *Server) findHash(m module.Version) string {
 func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 	enc, err := module.EscapePath(path)
 	if err != nil {
-		srv.logf("go proxy_test %v\n", err)
+		srv.logf("go proxy_test: %v\n", err)
 		return nil
 	}
 	encVers, err := module.EscapeVersion(vers)
 	if err != nil {
-		srv.logf("go proxy_test %v\n", err)
+		srv.logf("go proxy_test: %v\n", err)
 		return nil
 	}
 
@@ -353,18 +357,18 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 			// fall back to trying a directory
 			a = new(txtar.Archive)
 
-			err = filepath.WalkDir(name, func(path string, entry fs.DirEntry, err error) error {
+			err = filepath.WalkDir(name, func(fpath string, entry fs.DirEntry, err error) error {
 				if err != nil {
 					return err
 				}
-				if path == name && !entry.IsDir() {
+				if fpath == name && !entry.IsDir() {
 					return fmt.Errorf("expected a directory root")
 				}
 				if entry.IsDir() {
 					return nil
 				}
-				arpath := filepath.ToSlash(strings.TrimPrefix(path, name+string(os.PathSeparator)))
-				data, err := os.ReadFile(path)
+				arpath := filepath.ToSlash(strings.TrimPrefix(fpath, name+string(os.PathSeparator)))
+				data, err := os.ReadFile(fpath)
 				if err != nil {
 					return err
 				}
@@ -375,15 +379,46 @@ func (srv *Server) readArchive(path, vers string) *txtar.Archive {
 				return nil
 			})
 		}
+		addDefaultFiles(a, path, vers)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				srv.logf("go proxy_test %v\n", err)
+				srv.logf("go proxy_test: %v\n", err)
 			}
 			a = nil
 		}
 		return a
 	}).(*txtar.Archive)
 	return a
+}
+
+func addDefaultFiles(a *txtar.Archive, path, vers string) {
+	if _, ok := getFileData(a, ".info"); !ok {
+		info, _ := json.Marshal(struct {
+			Version string
+			Time    string
+		}{vers, "1970-01-01T00:00:00Z"})
+		a.Files = append(a.Files, txtar.File{
+			Name: ".info",
+			Data: append(info, '\n'),
+		})
+	}
+	if _, ok := getFileData(a, ".mod"); !ok {
+		if data, ok := getFileData(a, "go.mod"); ok {
+			a.Files = append(a.Files, txtar.File{
+				Name: ".mod",
+				Data: data,
+			})
+		}
+	}
+}
+
+func getFileData(a *txtar.Archive, name string) ([]byte, bool) {
+	for _, f := range a.Files {
+		if f.Name == name {
+			return f.Data, true
+		}
+	}
+	return nil, false
 }
 
 // latestVersion returns the latest version from the given sequence,
