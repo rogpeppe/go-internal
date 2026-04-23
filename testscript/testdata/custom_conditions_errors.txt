@@ -1,0 +1,72 @@
+env GOPATH=$WORK
+env GOCACHE=$WORK/.cache
+
+[!exec:echo] skip
+cd cond_errors
+exec go mod tidy
+! exec go test -run TestConditionErrors/is_upper-no-parameter
+stdout 'FAIL'
+stdout 'syntax: \[is_upper:word\]'
+
+! exec go test -run TestConditionErrors/is_lower-no-parameter
+stdout 'FAIL'
+stdout 'syntax: \[is_lower:word\]'
+
+! exec go test -run TestConditionErrors/unrecognized
+stdout 'FAIL'
+stdout 'unrecognized condition something'
+
+-- cond_errors/main_test.go --
+package condition_errors
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/rogpeppe/go-internal/testscript"
+)
+
+func TestConditionErrors(t *testing.T) {
+	testscript.Run(t, testscript.Params{
+		Dir: "testdata",
+		Condition: func(cond string) (bool, error) {
+			// Assume condition name and args are separated by colon (":")
+			args := strings.Split(cond, ":")
+			name := args[0]
+			switch name {
+			case "is_upper":
+				if len(args) < 2 {
+					return false, fmt.Errorf("syntax: [is_upper:word]")
+				}
+				return strings.ToUpper(args[1]) == args[1], nil
+			case "is_lower":
+				if len(args) < 2 {
+					return false, fmt.Errorf("syntax: [is_lower:word]")
+				}
+				return strings.ToLower(args[1]) == args[1], nil
+			case "always_true":
+				return true, nil
+			case "always_false":
+				return false, nil
+			default:
+				return false, fmt.Errorf("unrecognized condition %s", name)
+			}
+		},
+	})
+}
+-- cond_errors/go.mod --
+module condition_errors
+
+go 1.18
+
+require (
+	github.com/rogpeppe/go-internal v1.9.0
+)
+
+-- cond_errors/testdata/is_upper-no-parameter.txt --
+[is_upper] exec echo ''
+-- cond_errors/testdata/is_lower-no-parameter.txt --
+[is_lower] exec echo ''
+-- cond_errors/testdata/unrecognized.txt --
+[something] exec echo ''
