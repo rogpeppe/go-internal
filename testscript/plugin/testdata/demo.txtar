@@ -1,0 +1,49 @@
+# The demo plugin reads its parameter directory and the GREETING variable from
+# the test environment when its instance is created, then exposes a result
+# variable built from both. The commands it provides ("echo", "warn", ...)
+# become available directly after the "plugin" command runs.
+env GREETING=howdy
+plugin demo params
+
+# The variable provided by the plugin instance (via Env) is set in the script
+# environment.
+echo $DEMO_MESSAGE
+stdout '^howdy, world$'
+
+# A command writes to standard output.
+echo one two three
+stdout '^one two three$'
+
+# A command writes to standard error.
+warn something is wrong
+stderr '^something is wrong$'
+
+# A command runs in the script's current working directory.
+cd sub
+cwd
+stdout '[/\\]sub$'
+cd ..
+
+# A command can set an environment variable mid-script (via CmdResult.Environ).
+settoken sesame
+echo $DEMO_TOKEN
+stdout '^sesame$'
+
+# A failing command is reported as a failure, can be negated, and its output
+# is still captured.
+! fail
+stderr '^deliberate failure$'
+
+# A second plugin can be used alongside the first. The kv plugin is invoked
+# without a parameter directory, and its instance keeps state across commands.
+plugin kv
+set color blue
+get color
+stdout '^blue$'
+get missing
+stdout '^$'
+
+-- params/name.txt --
+world
+-- sub/keep.txt --
+placeholder

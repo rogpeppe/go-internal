@@ -17,6 +17,7 @@ import (
 	"github.com/rogpeppe/go-internal/goproxytest"
 	"github.com/rogpeppe/go-internal/gotooltest"
 	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/rogpeppe/go-internal/testscript/plugin"
 )
 
 type envVarsFlag struct {
@@ -98,7 +99,6 @@ func mainerr() (retErr error) {
 		files[i] = stdinTempFile
 		defer os.Remove(stdinTempFile)
 	}
-
 	p := testscript.Params{
 		Setup:           func(*testscript.Env) error { return nil },
 		Files:           files,
@@ -106,12 +106,19 @@ func mainerr() (retErr error) {
 		ContinueOnError: *fContinue,
 		TestWork:        *fWork,
 	}
+	cleanup, err := plugin.Setup(&p)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 
 	if _, err := exec.LookPath("go"); err == nil {
 		if err := gotooltest.Setup(&p); err != nil {
 			return fmt.Errorf("failed to setup go tool: %v", err)
 		}
 	}
+	// When a script provides a .gomodproxy directory, serve those modules
+	// from a local proxy, overriding any GOPROXY set above.
 	goproxytest.Setup(&p)
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
