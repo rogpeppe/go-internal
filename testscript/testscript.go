@@ -961,6 +961,17 @@ func (ts *TestScript) Check(err error) {
 	}
 }
 
+// Stdin returns the content that was provided by a previous stdin command.
+// It can be used by a user-supplied builtin command (declared via Params.Cmds)
+// that simulates an external program. If this method is called outside of the
+// execution of a user-supplied builtin command, the call panics.
+func (ts *TestScript) Stdin() string {
+	if !ts.runningBuiltin {
+		panic("can only call TestScript.Stdin when running a builtin command")
+	}
+	return ts.stdin
+}
+
 // Stdout returns an io.Writer that can be used by a user-supplied builtin
 // command (declared via Params.Cmds) to write to stdout. If this method is
 // called outside of the execution of a user-supplied builtin command, the

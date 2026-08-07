@@ -301,6 +301,17 @@ func TestScripts(t *testing.T) {
 					ts.Fatalf("cannot chdir: %v", err)
 				}
 			},
+			"quotedstdin": func(ts *TestScript, neg bool, args []string) {
+				if neg {
+					ts.Fatalf("unsupported: ! quotedstdin")
+				}
+				if len(args) != 0 {
+					ts.Fatalf("usage: quotedstdin")
+				}
+
+				// print the contents formatted a little differently so the test cannot accidentally depend on previous stdout
+				fmt.Fprintf(ts.Stdout(), "stdin: %q\n", ts.Stdin())
+			},
 		},
 		Setup: func(env *Env) error {
 			infos, err := os.ReadDir(env.WorkDir)
