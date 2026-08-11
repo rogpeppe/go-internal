@@ -14,15 +14,11 @@ import (
 
 // Default returns the default cache to use.
 // It never returns nil.
-func Default() *Cache {
-	defaultOnce.Do(initDefaultCache)
-	return defaultCache
+func Default() Cacher {
+	return initDefaultCacheOnce()
 }
 
-var (
-	defaultOnce  sync.Once
-	defaultCache *Cache
-)
+var initDefaultCacheOnce = sync.OnceValue(initDefaultCache)
 
 // cacheREADME is a message stored in a README in the cache directory.
 // Because the cache lives outside the normal Go trees, we leave the
@@ -35,7 +31,7 @@ See golang.org to learn more about Go.
 
 // initDefaultCache does the work of finding the default cache
 // the first time Default is called.
-func initDefaultCache() {
+func initDefaultCache() Cacher {
 	dir := DefaultDir()
 	if dir == "off" {
 		if defaultDirErr != nil {
@@ -51,11 +47,18 @@ func initDefaultCache() {
 		os.WriteFile(filepath.Join(dir, "README"), []byte(cacheREADME), 0666)
 	}
 
-	c, err := Open(dir)
+	diskCache, err := Open(dir)
 	if err != nil {
 		log.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
 	}
-	defaultCache = c
+
+	// NOTE: changed from upstream's cfg.Getenv, so it will ignore "go env -w".
+	// Consider calling "go env" or copying the cfg package instead.
+	if cacheprog := os.Getenv("GOCACHEPROG"); cacheprog != "" {
+		return startCacheProg(cacheprog, diskCache)
+	}
+
+	return diskCache
 }
 
 var (

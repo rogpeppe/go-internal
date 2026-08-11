@@ -30,6 +30,49 @@ type ActionID [HashSize]byte
 // An OutputID is a cache output key, the hash of an output of a computation.
 type OutputID [HashSize]byte
 
+// Cacher is the interface as used by the cmd/go.
+// NOTE: name is changed from upstream's Cache to avoid breaking changes.
+type Cacher interface {
+	// Get returns the cache entry for the provided ActionID.
+	// On miss, the error type should be of type *entryNotFoundError.
+	//
+	// After a successful call to Get, OutputFile(Entry.OutputID) must
+	// exist on disk until Close is called (at the end of the process).
+	Get(ActionID) (Entry, error)
+
+	// Put adds an item to the cache.
+	//
+	// The seeker is only used to seek to the beginning. After a call to Put,
+	// the seek position is not guaranteed to be in any particular state.
+	//
+	// As a special case, if the ReadSeeker is of type noVerifyReadSeeker,
+	// the verification from GODEBUG=goverifycache=1 is skipped.
+	//
+	// After a successful call to Put, OutputFile(OutputID) must
+	// exist on disk until Close is called (at the end of the process).
+	Put(ActionID, io.ReadSeeker) (_ OutputID, size int64, _ error)
+
+	// Close is called at the end of the go process. Implementations can do
+	// cache cleanup work at this phase, or wait for and report any errors from
+	// background cleanup work started earlier. Any cache trimming in one
+	// process should not cause the invariants of this interface to be
+	// violated in another process. Namely, a cache trim from one process should
+	// not delete an OutputID from disk that was recently Get or Put from
+	// another process. As a rule of thumb, don't trim things used in the last
+	// day.
+	Close() error
+
+	// OutputFile returns the path on disk where OutputID is stored.
+	//
+	// It's only called after a successful get or put call so it doesn't need
+	// to return an error; it's assumed that if the previous get or put succeeded,
+	// it's already on disk.
+	OutputFile(OutputID) string
+
+	// FuzzDir returns where fuzz files are stored.
+	FuzzDir() string
+}
+
 // A Cache is a package cache, backed by a file system directory tree.
 type Cache struct {
 	dir string
@@ -266,6 +309,39 @@ func (c *Cache) GetMmap(id ActionID) ([]byte, Entry, error) {
 }
 */
 
+// GetFile looks up the action ID in the cache and returns
+// the name of the corresponding data file.
+func GetFile(c Cacher, id ActionID) (file string, entry Entry, err error) {
+	entry, err = c.Get(id)
+	if err != nil {
+		return "", Entry{}, err
+	}
+	file = c.OutputFile(entry.OutputID)
+	info, err := os.Stat(file)
+	if err != nil {
+		return "", Entry{}, &entryNotFoundError{Err: err}
+	}
+	if info.Size() != entry.Size {
+		return "", Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+	}
+	return file, entry, nil
+}
+
+// GetBytes looks up the action ID in the cache and returns
+// the corresponding output bytes.
+// GetBytes should only be used for data that can be expected to fit in memory.
+func GetBytes(c Cacher, id ActionID) ([]byte, Entry, error) {
+	entry, err := c.Get(id)
+	if err != nil {
+		return nil, entry, err
+	}
+	data, _ := os.ReadFile(c.OutputFile(entry.OutputID))
+	if sha256.Sum256(data) != entry.OutputID {
+		return nil, entry, &entryNotFoundError{Err: errors.New("bad checksum")}
+	}
+	return data, entry, nil
+}
+
 // OutputFile returns the name of the cache file storing output with the given OutputID.
 func (c *Cache) OutputFile(out OutputID) string {
 	file := c.fileName(out, "d")
@@ -307,6 +383,8 @@ func (c *Cache) used(file string) {
 	}
 	os.Chtimes(file, c.now(), c.now())
 }
+
+func (c *Cache) Close() error { return c.Trim() }
 
 // Trim removes old cache entries that are likely not to be reused.
 func (c *Cache) Trim() error {
@@ -431,10 +509,21 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	return nil
 }
 
+// noVerifyReadSeeker is an io.ReadSeeker wrapper sentinel type
+// that says that Cache.Put should skip the verify check
+// (from GODEBUG=goverifycache=1).
+type noVerifyReadSeeker struct {
+	io.ReadSeeker
+}
+
 // Put stores the given output in the cache as the output for the action ID.
 // It may read file twice. The content of file must not change between the two passes.
 func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
-	return c.put(id, file, true)
+	wrapper, isNoVerify := file.(noVerifyReadSeeker)
+	if isNoVerify {
+		file = wrapper.ReadSeeker
+	}
+	return c.put(id, file, !isNoVerify)
 }
 
 // PutNoVerify is like Put but disables the verify check
@@ -443,6 +532,14 @@ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
 // like test output containing times and the like.
 func (c *Cache) PutNoVerify(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
 	return c.put(id, file, false)
+}
+
+// PutNoVerify is like Put but disables the verify check
+// when GODEBUG=goverifycache=1 is set.
+// It is meant for data that is OK to cache but that we expect to vary slightly from run to run,
+// like test output containing times and the like.
+func PutNoVerify(c Cacher, id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+	return c.Put(id, noVerifyReadSeeker{file})
 }
 
 func (c *Cache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
@@ -469,6 +566,12 @@ func (c *Cache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID
 
 // PutBytes stores the given bytes in the cache as the output for the action ID.
 func (c *Cache) PutBytes(id ActionID, data []byte) error {
+	_, _, err := c.Put(id, bytes.NewReader(data))
+	return err
+}
+
+// PutBytes stores the given bytes in the cache as the output for the action ID.
+func PutBytes(c Cacher, id ActionID, data []byte) error {
 	_, _, err := c.Put(id, bytes.NewReader(data))
 	return err
 }
