@@ -1,0 +1,67 @@
+[!exec:echo] skip
+
+env upper_word=ABCD
+env lower_word=abcd
+
+[always_true] exec echo 'this is true'
+stdout 'this is true'
+
+exec echo ''
+
+[!always_true] exec echo 'this is true'
+! stdout .
+
+exec echo ''
+
+[always_false] exec echo 'this is false'
+! stdout .
+
+exec echo ''
+
+[!always_false] exec echo 'this is false'
+stdout 'this is false'
+
+exec echo ''
+
+[is_upper:ABCD] exec echo 'it is upper'
+stdout 'it is upper'
+
+exec echo ''
+
+[is_upper:$upper_word] exec echo 'it is again upper'
+stdout 'it is again upper'
+
+exec echo ''
+
+[is_upper:abcd] exec echo 'it is upper'
+! stdout .
+
+exec echo ''
+
+[is_upper:$lower_word] exec echo 'it is lower'
+! stdout .
+
+exec echo ''
+
+[!is_upper:ABCD] exec echo 'it is upper'
+! stdout .
+
+exec echo ''
+
+[is_lower:abcd] exec echo  'it is lower'
+stdout 'it is lower'
+
+exec echo ''
+
+[is_lower:$lower_word] exec echo  'it is again lower'
+stdout 'it is again lower'
+
+exec echo ''
+
+[is_lower:ABCD] exec echo 'it is lower'
+! stdout .
+
+exec echo ''
+
+[!is_lower:$lower_word] exec echo 'it is lower'
+! stdout .
