@@ -80,6 +80,7 @@ func TestMain(m *testing.M) {
 		"fprintargs":     fprintArgs,
 		"status":         exitWithStatus,
 		"signalcatcher":  signalCatcher,
+		"holdopen":       holdOpen,
 		"terminalprompt": terminalPrompt,
 	})
 }

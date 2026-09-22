@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/rogpeppe/go-internal/robustio"
 )
 
 // TestingM is implemented by *testing.M. It's defined as an interface
@@ -66,7 +68,7 @@ func testingMRun(m TestingM, commands map[string]func()) int {
 		log.Fatalf("could not set up temporary directory: %v", err)
 	}
 	defer func() {
-		if err := os.RemoveAll(tmpdir); err != nil {
+		if err := robustio.RemoveAll(tmpdir); err != nil {
 			log.Fatalf("cannot delete temporary directory: %v", err)
 		}
 	}()
