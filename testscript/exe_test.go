@@ -8,48 +8,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 )
 
 const holdOpenReadyEnv = "TESTSCRIPT_HOLDOPEN_READY"
 
-type testM struct {
-	run func() int
-}
+type testM func() int
 
 func (m testM) Run() int {
-	return m.run()
-}
-
-func holdOpen() {
-	if err := os.WriteFile(os.Getenv(holdOpenReadyEnv), nil, 0o666); err != nil {
-		os.Exit(2)
-	}
-	time.Sleep(750 * time.Millisecond)
+	return m()
 }
 
 func TestMainCleanupRetriesAccessDenied(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Windows executable sharing semantics are required")
-	}
-
 	ready := filepath.Join(t.TempDir(), "ready")
-	oldReady, hadOldReady := os.LookupEnv(holdOpenReadyEnv)
-	if err := os.Setenv(holdOpenReadyEnv, ready); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if hadOldReady {
-			_ = os.Setenv(holdOpenReadyEnv, oldReady)
-		} else {
-			_ = os.Unsetenv(holdOpenReadyEnv)
-		}
-	})
+	t.Setenv(holdOpenReadyEnv, ready)
 
 	var cmd *exec.Cmd
-	code := testingMRun(testM{run: func() int {
+	code := testingMRun(testM(func() int {
 		cmd = exec.Command("holdopen")
 		if err := cmd.Start(); err != nil {
 			t.Errorf("start holdopen: %v", err)
@@ -66,7 +42,7 @@ func TestMainCleanupRetriesAccessDenied(t *testing.T) {
 			}
 			time.Sleep(10 * time.Millisecond)
 		}
-	}}, map[string]func(){"holdopen": holdOpen})
+	}), map[string]func(){"holdopen": holdOpen})
 	if cmd != nil {
 		if err := cmd.Wait(); err != nil {
 			t.Errorf("holdopen: %v", err)
@@ -75,4 +51,11 @@ func TestMainCleanupRetriesAccessDenied(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("testingMRun returned %d", code)
 	}
+}
+
+func holdOpen() {
+	if err := os.WriteFile(os.Getenv(holdOpenReadyEnv), nil, 0o666); err != nil {
+		os.Exit(2)
+	}
+	time.Sleep(100 * time.Millisecond)
 }
