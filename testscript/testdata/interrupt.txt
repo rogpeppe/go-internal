@@ -1,7 +1,7 @@
 [windows] skip
 
-signalcatcher &
-waitfile catchsignal
+signalcatcher &sc&
+waitmatch sc ^ready$
 interrupt
 wait
 stdout 'caught interrupt'
