@@ -24,6 +24,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -424,10 +425,12 @@ type TestScript struct {
 }
 
 type backgroundCmd struct {
-	name string
-	cmd  *exec.Cmd
-	wait <-chan struct{}
-	neg  bool // if true, cmd should fail
+	name   string
+	cmd    *exec.Cmd
+	stdout *backgroundOutput
+	stderr *backgroundOutput
+	wait   <-chan struct{}
+	neg    bool // if true, cmd should fail
 }
 
 func writeFile(name string, data []byte, perm fs.FileMode, excl bool) error {
@@ -1084,23 +1087,112 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 }
 
 // execBackground starts the given command line (an actual subprocess, not simulated)
-// in ts.cd with environment ts.env.
-func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+// in ts.cd with environment ts.env, as a background command with the given name.
+func (ts *TestScript) execBackground(name string, neg bool, command string, args ...string) (backgroundCmd, error) {
 	if ts.ttyin != "" {
-		return nil, errors.New("ttyin is not supported by background commands")
+		return backgroundCmd{}, errors.New("ttyin is not supported by background commands")
 	}
 	cmd, err := ts.buildExecCmd(command, args...)
 	if err != nil {
-		return nil, err
+		return backgroundCmd{}, err
+	}
+	wait := make(chan struct{})
+	bg := backgroundCmd{
+		name:   name,
+		cmd:    cmd,
+		stdout: newBackgroundOutput(),
+		stderr: newBackgroundOutput(),
+		wait:   wait,
+		neg:    neg,
 	}
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
-	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdin = strings.NewReader(ts.stdin)
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
+	cmd.Stdout = bg.stdout
+	cmd.Stderr = bg.stderr
 	ts.stdin = ""
-	return cmd, cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return backgroundCmd{}, err
+	}
+	go func() {
+		waitOrStop(ts.ctxt, cmd, -1)
+		bg.stdout.close()
+		bg.stderr.close()
+		close(wait)
+	}()
+	return bg, nil
+}
+
+// backgroundOutput buffers an output stream of a background command.
+// It is safe for concurrent use, so that waitmatch can read the output
+// while the command is still running.
+type backgroundOutput struct {
+	mu      sync.Mutex
+	buf     strings.Builder
+	written chan struct{} // closed by the next write or by close
+	closed  bool
+}
+
+func newBackgroundOutput() *backgroundOutput {
+	return &backgroundOutput{written: make(chan struct{})}
+}
+
+func (o *backgroundOutput) Write(p []byte) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.buf.Write(p)
+	close(o.written)
+	o.written = make(chan struct{})
+	return len(p), nil
+}
+
+// close marks the end of the output, once the command has exited.
+func (o *backgroundOutput) close() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.closed = true
+	close(o.written)
+}
+
+// String returns the output written so far.
+func (o *backgroundOutput) String() string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.buf.String()
+}
+
+// reader returns a reader which produces the output from the start,
+// blocking until more is written. It returns [io.EOF] once the output is closed,
+// or ctx.Err() if the context is cancelled first.
+func (o *backgroundOutput) reader(ctx context.Context) io.Reader {
+	return &backgroundOutputReader{o: o, ctx: ctx}
+}
+
+type backgroundOutputReader struct {
+	o   *backgroundOutput
+	ctx context.Context
+	off int
+}
+
+func (r *backgroundOutputReader) Read(p []byte) (int, error) {
+	for {
+		r.o.mu.Lock()
+		s, written, closed := r.o.buf.String(), r.o.written, r.o.closed
+		r.o.mu.Unlock()
+		if r.off < len(s) {
+			n := copy(p, s[r.off:])
+			r.off += n
+			return n, nil
+		}
+		if closed {
+			return 0, io.EOF
+		}
+		select {
+		case <-written:
+		case <-r.ctx.Done():
+			return 0, r.ctx.Err()
+		}
+	}
 }
 
 func (ts *TestScript) buildExecCmd(command string, args ...string) (*exec.Cmd, error) {

@@ -35,6 +35,22 @@ func fprintArgs() {
 	}
 }
 
+// printAndWait prints lines to stdout or stderr, pausing between them,
+// and then waits to be interrupted like a server would.
+func printAndWait() {
+	out := os.Stdout
+	if os.Args[1] == "stderr" {
+		out = os.Stderr
+	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	for _, line := range os.Args[2:] {
+		time.Sleep(10 * time.Millisecond)
+		fmt.Fprintln(out, line)
+	}
+	<-c
+}
+
 func exitWithStatus() {
 	n, _ := strconv.Atoi(os.Args[1])
 	os.Exit(n)
@@ -78,6 +94,7 @@ func TestMain(m *testing.M) {
 	Main(m, map[string]func(){
 		"printargs":      printArgs,
 		"fprintargs":     fprintArgs,
+		"printandwait":   printAndWait,
 		"status":         exitWithStatus,
 		"signalcatcher":  signalCatcher,
 		"terminalprompt": terminalPrompt,
@@ -234,6 +251,7 @@ func TestScripts(t *testing.T) {
 				fVerbose := fset.Bool("v", false, "be verbose with output")
 				fContinue := fset.Bool("continue", false, "continue on error")
 				fFiles := fset.Bool("files", false, "specify files rather than a directory")
+				fTimeout := fset.Duration("timeout", 0, "time out after the given duration")
 				if err := fset.Parse(args); err != nil {
 					ts.Fatalf("failed to parse args for testscript: %v", err)
 				}
@@ -250,6 +268,10 @@ func TestScripts(t *testing.T) {
 					dir = ts.MkAbs(fset.Arg(0))
 				}
 				t := &fakeT{verbose: *fVerbose}
+				var deadline time.Time
+				if *fTimeout > 0 {
+					deadline = time.Now().Add(*fTimeout)
+				}
 				func() {
 					defer catchAbort()
 					RunT(t, Params{
@@ -264,6 +286,7 @@ func TestScripts(t *testing.T) {
 							"echoandexit": echoandexit,
 						},
 						ContinueOnError: *fContinue,
+						Deadline:        deadline,
 					})
 				}()
 				stdout := t.log.String()
