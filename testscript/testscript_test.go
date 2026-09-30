@@ -60,12 +60,8 @@ func signalCatcher() {
 	// Note: won't work under Windows.
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	// Create a file so that the test can know that
-	// we will catch the signal.
-	if err := os.WriteFile("catchsignal", nil, 0o666); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	// Let the test know that we will catch the signal.
+	fmt.Println("ready")
 	<-c
 	fmt.Println("caught interrupt")
 }
@@ -204,7 +200,6 @@ func TestScripts(t *testing.T) {
 				})
 			},
 			"interrupt": interrupt,
-			"waitfile":  waitFile,
 			"testdefer": func(ts *TestScript, neg bool, args []string) {
 				testDeferCount++
 				n := testDeferCount
@@ -501,27 +496,6 @@ func interrupt(ts *TestScript, neg bool, args []string) {
 		ts.Fatalf("unexpected background cmd count; got %d want %d", got, want)
 	}
 	bg[0].Process.Signal(os.Interrupt)
-}
-
-func waitFile(ts *TestScript, neg bool, args []string) {
-	if neg {
-		ts.Fatalf("waitfile does not support neg")
-	}
-	if len(args) != 1 {
-		ts.Fatalf("usage: waitfile file")
-	}
-	path := ts.MkAbs(args[0])
-	for range 100 {
-		_, err := os.Stat(path)
-		if err == nil {
-			return
-		}
-		if !os.IsNotExist(err) {
-			ts.Fatalf("unexpected stat error: %v", err)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	ts.Fatalf("timed out waiting for %q to be created", path)
 }
 
 type fakeT struct {
