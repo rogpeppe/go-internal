@@ -248,6 +248,16 @@ The predefined commands are:
     must have been started with the final token '&command&` as described for the
     exec command.
 
+  - waitmatch [-stderr] command pattern [var...]
+    Wait for a command started in the background with the final token
+    '&command&' to print a line matching the regular expression pattern.
+    It matches against the command's standard output unless -stderr is
+    specified. This is useful to wait for a background process to be ready,
+    such as a server printing the address it listens on. Any variables given
+    are set to the subexpressions of the match, in order. It fails if the
+    command exits without printing a matching line, or if the test times out
+    first.
+
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)
 and only shows the # comments for earlier phases. For example, here is a

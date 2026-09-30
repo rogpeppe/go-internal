@@ -1,0 +1,53 @@
+# waitmatch waits for a background command to print a matching line,
+# including one printed before waitmatch starts waiting,
+# and sets variables to the subexpressions of the match.
+! exec printandwait stdout 'starting up' 'listening on 127.0.0.1:1234' 'more output' &srv&
+waitmatch srv '^listening on (.+):(\d+)$' HOST PORT
+exec printargs $HOST $PORT
+stdout '"127.0.0.1" "1234"'
+waitmatch srv '^starting up$'
+waitmatch srv '^more output$'
+
+# Waiting for the command still gives all of its output.
+kill srv
+wait srv
+stdout '^starting up\nlistening on 127.0.0.1:1234\nmore output\n$'
+
+# -stderr waits for a line on standard error instead.
+! exec printandwait stderr 'ready' &errsrv&
+waitmatch -stderr errsrv '^ready$'
+
+# A command may also exit before or while waitmatch waits.
+exec fprintargs stdout done &short&
+waitmatch short '^done$'
+
+! testscript -v exited
+stdout 'FAIL: .*: "bg" exited without printing a line matching `never` to stdout'
+
+! testscript -timeout=500ms timeout
+stdout 'FAIL: .*: test timed out while waiting for "bg" to print a line matching `never` to stdout'
+
+! testscript usage
+stdout 'unknown background process "nosuch"'
+stdout 'cannot set 2 variables from 1 subexpressions'
+
+# Lines may also end with CRLF.
+[!exec:cat] stop
+unix2dos crlf.txt
+exec cat crlf.txt &crlf&
+waitmatch crlf '^ready$'
+
+-- exited/script.txt --
+exec fprintargs stdout foo &bg&
+waitmatch bg never
+-- timeout/script.txt --
+exec printandwait stdout foo &bg&
+waitmatch bg never
+-- usage/script.txt --
+exec printandwait stdout foo &bg&
+waitmatch nosuch foo
+-- usage/twovars.txt --
+exec printandwait stdout foo &bg&
+waitmatch bg '(foo)' A B
+-- crlf.txt --
+ready
