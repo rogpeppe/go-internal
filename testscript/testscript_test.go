@@ -430,6 +430,35 @@ func TestWorkdirRoot(t *testing.T) {
 	}
 }
 
+// TestTempDirRemoved tests that the directory holding the work directories is
+// removed once the tests are done, even if Setup created files next to them.
+func TestTempDirRemoved(t *testing.T) {
+	if *testWork {
+		t.Skip("-testwork keeps the work directories")
+	}
+	td := t.TempDir()
+	t.Setenv("GOTMPDIR", td)
+	params := Params{
+		Dir: filepath.Join("testdata", "nothing"),
+		Setup: func(env *Env) error {
+			return os.WriteFile(filepath.Join(env.WorkDir, "..", "shared"), nil, 0o666)
+		},
+	}
+	// Run as a sub-test so that this call blocks until the sub-tests created by
+	// calling Run (which themselves call t.Parallel) complete.
+	t.Run("run tests", func(t *testing.T) {
+		Run(t, params)
+	})
+	files, err := os.ReadDir(td)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// TODO: the go-test-script directory should be removed too.
+	if len(files) != 1 {
+		t.Fatalf("unexpected files left in GOTMPDIR: %v", files)
+	}
+}
+
 // TestBadDir verifies that invoking testscript with a directory that either
 // does not exist or that contains no *.txt scripts fails the test
 func TestBadDir(t *testing.T) {
