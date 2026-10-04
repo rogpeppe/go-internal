@@ -360,8 +360,10 @@ func RunT(t T, p Params) {
 				removeAll(ts.workdir)
 				if atomic.AddInt32(&refCount, -1) == 0 {
 					// This is the last subtest to finish. Remove the
-					// parent directory too, and cancel the context.
-					os.Remove(testTempDir)
+					// parent directory too, along with anything that Setup
+					// functions may have created next to the work
+					// directories, and cancel the context.
+					removeAll(testTempDir)
 					if cancel != nil {
 						cancel()
 					}

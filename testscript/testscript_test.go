@@ -453,8 +453,7 @@ func TestTempDirRemoved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// TODO: the go-test-script directory should be removed too.
-	if len(files) != 1 {
+	if len(files) != 0 {
 		t.Fatalf("unexpected files left in GOTMPDIR: %v", files)
 	}
 }
