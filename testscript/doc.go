@@ -121,6 +121,33 @@ A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false.
 
 Additional conditions can be added by passing a function to Params.Condition.
+The function will only be called when all built-in conditions have been checked for.
+
+An example:
+		Condition: func(cond string) (bool, error) {
+			// Assume condition name and args are separated by colon (":")
+			args := strings.Split(cond, ":")
+			name := args[0]
+			switch name {
+			case "exists":
+				if len(args) < 2 {
+					return false, fmt.Errorf("syntax: [exists:file_name]")
+				}
+				_, err := os.Stat(args[1])
+				return !errors.Is(err, fs.ErrNotExist), nil
+			case "long":
+				return os.Getenv("TEST_LONG") != "", nil
+			default:
+				return false, fmt.Errorf("unrecognized condition %s", name)
+			}
+		},
+
+With the conditions so defined, you can use them as follows:
+	env file_name=/path/to/filename
+	[exists:$file_name] exec echo 'file was found'
+	env loops=1
+	[long] env loops=3
+	exec do_something $loops
 
 The predefined commands are:
 
