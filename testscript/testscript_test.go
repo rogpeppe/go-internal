@@ -93,6 +93,7 @@ func TestMain(m *testing.M) {
 		"printandwait":   printAndWait,
 		"status":         exitWithStatus,
 		"signalcatcher":  signalCatcher,
+		"holdopen":       holdOpen,
 		"terminalprompt": terminalPrompt,
 	})
 }
