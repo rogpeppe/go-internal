@@ -318,10 +318,25 @@ func (ts *TestScript) cmdMv(neg bool, args []string) {
 	if neg {
 		ts.Fatalf("unsupported: ! mv")
 	}
-	if len(args) != 2 {
-		ts.Fatalf("usage: mv old new")
+	if len(args) < 2 {
+		ts.Fatalf("usage: mv src... dst")
 	}
-	ts.Check(os.Rename(ts.MkAbs(args[0]), ts.MkAbs(args[1])))
+
+	dst := ts.MkAbs(args[len(args)-1])
+	info, err := os.Stat(dst)
+	dstDir := err == nil && info.IsDir()
+	if len(args) > 2 && !dstDir {
+		ts.Fatalf("mv: destination %s is not a directory", dst)
+	}
+
+	for _, arg := range args[:len(args)-1] {
+		src := ts.MkAbs(arg)
+		targ := dst
+		if dstDir {
+			targ = filepath.Join(dst, filepath.Base(src))
+		}
+		ts.Check(os.Rename(src, targ))
+	}
 }
 
 // unquote unquotes files.

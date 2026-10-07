@@ -192,9 +192,11 @@ The predefined commands are:
   - mkdir path...
     Create the listed directories, if they do not already exists.
 
-  - mv path1 path2
-    Rename path1 to path2. OS-specific restrictions may apply when path1 and path2
-    are in different directories.
+  - mv src... dst
+    Move the listed files or directories to the target path or existing directory.
+    When moving multiple sources, the target must be an existing directory.
+    OS-specific restrictions may apply when the source and destination are in
+    different directories.
 
   - rm file...
     Remove the listed files or directories.
