@@ -1,0 +1,73 @@
+unquote scripts/stdout.txt
+unquote scripts/stderr.txt
+unquote scripts/file.txt
+unquote scripts/negated.txt
+unquote scripts/cmpenv.txt
+unquote stdout-new.txt
+unquote stderr-new.txt
+unquote file-new.txt
+cp scripts/negated.txt negated-unchanged.txt
+cp scripts/cmpenv.txt cmpenv-unchanged.txt
+
+testscript -update scripts
+cmp scripts/stdout.txt stdout-new.txt
+cmp scripts/stderr.txt stderr-new.txt
+cmp scripts/file.txt file-new.txt
+cmp scripts/negated.txt negated-unchanged.txt
+cmp scripts/cmpenv.txt cmpenv-unchanged.txt
+
+-- scripts/stdout.txt --
+>fprintargs stdout right
+>cmp want stdout
+>
+>-- want --
+>wrong
+>-- stdout --
+>not captured output
+-- scripts/stderr.txt --
+>fprintargs stderr right
+>cmp want stderr
+>
+>-- want --
+>wrong
+-- scripts/file.txt --
+>fprintargs stdout right
+>cp stdout got
+>cmp want got
+>
+>-- want --
+>wrong
+-- stdout-new.txt --
+>fprintargs stdout right
+>cmp want stdout
+>
+>-- want --
+>right
+>-- stdout --
+>not captured output
+-- scripts/negated.txt --
+>fprintargs stdout right
+>! cmp want stdout
+>
+>-- want --
+>wrong
+-- scripts/cmpenv.txt --
+>env VALUE=right
+>fprintargs stdout '$VALUE'
+>cmpenv want stdout
+>
+>-- want --
+>right
+-- stderr-new.txt --
+>fprintargs stderr right
+>cmp want stderr
+>
+>-- want --
+>right
+-- file-new.txt --
+>fprintargs stdout right
+>cp stdout got
+>cmp want got
+>
+>-- want --
+>right
