@@ -1,0 +1,35 @@
+fprintargs stdout right
+cmp want stdout
+! cmp wrong stdout
+cmpenv want stdout
+
+fprintargs stderr right
+cmp want stderr
+! cmp wrong stderr
+cmpenv want stderr
+
+# cmpenv still expands only the second argument, including captured output.
+env VALUE=right
+fprintargs stdout '$VALUE'
+cmpenv want stdout
+fprintargs stdout right
+! cmpenv variable stdout
+
+# The diff follows argument order when captured output is second.
+unquote scripts/testscript.txt
+! testscript scripts
+stdout '(?m)^-wrong$'
+stdout '(?m)^\+right$'
+
+-- want --
+right
+-- wrong --
+wrong
+-- variable --
+$VALUE
+-- scripts/testscript.txt --
+>fprintargs stdout right
+>cmp want stdout
+>
+>-- want --
+>wrong

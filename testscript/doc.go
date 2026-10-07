@@ -134,7 +134,7 @@ The predefined commands are:
   - [!] cmp file1 file2
     Check that the named files have (or do not have) the same content.
     By convention, file1 is the actual data and file2 the expected data.
-    File1 can be "stdout" or "stderr" to use the standard output or standard error
+    Either file can be "stdout" or "stderr" to use the standard output or standard error
     from the most recent exec or wait command.
     (If the files have differing content and the command is not negated,
     the failure prints a diff.)

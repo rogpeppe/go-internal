@@ -118,10 +118,7 @@ func (ts *TestScript) doCmdCmp(neg bool, args []string, env bool) {
 	}
 	text1 := ts.ReadFile(name1)
 
-	absName2 := ts.MkAbs(name2)
-	data, err := os.ReadFile(absName2)
-	ts.Check(err)
-	text2 := string(data)
+	text2 := ts.ReadFile(name2)
 	if env {
 		text2 = ts.expand(text2)
 	}
@@ -136,11 +133,21 @@ func (ts *TestScript) doCmdCmp(neg bool, args []string, env bool) {
 		return // they are equal, as expected
 	}
 	if ts.params.UpdateScripts && !env {
-		if scriptFile, ok := ts.scriptFiles[absName2]; ok {
-			ts.scriptUpdates[scriptFile] = text1
-			return
+		// Prefer updating the second argument when both files are in the archive.
+		for _, update := range []struct{ name, text string }{
+			{name2, text1},
+			{name1, text2},
+		} {
+			switch update.name {
+			case "stdout", "stderr", "ttyout":
+				continue
+			}
+			if scriptFile, ok := ts.scriptFiles[ts.MkAbs(update.name)]; ok {
+				ts.scriptUpdates[scriptFile] = update.text
+				return
+			}
 		}
-		// The file being compared against isn't in the txtar archive, so don't
+		// Neither file is in the txtar archive, so don't
 		// update the script.
 	}
 

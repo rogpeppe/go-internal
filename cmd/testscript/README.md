@@ -25,9 +25,11 @@ where VAR is the name of the variable. Variables override testscript-defined
 values, with the exception of WORK which cannot be overridden. The -e flag can
 appear multiple times to specify multiple variables.
 
-The -u flag specifies that if a cmp command within a testscript fails and its
-second argument refers to a file inside the testscript file, the command will
-succeed and the testscript file will be updated to reflect the actual content.
+The -u flag specifies that if a cmp command within a testscript fails and
+either argument refers to a file inside the testscript file, the command will
+succeed and that file will be updated to reflect the other argument's content.
+If both arguments refer to files inside the testscript file, the second file is
+updated.
 As such, this is the cmd/testcript equivalent of
 testscript.Params.UpdateScripts.
 
