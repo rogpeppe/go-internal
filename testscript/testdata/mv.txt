@@ -1,0 +1,46 @@
+# Rename a file to a new path or replace an existing file.
+cp first.txt renamed.txt
+mv renamed.txt new.txt
+! exists renamed.txt
+cmp new.txt first.txt
+cp second.txt replaced.txt
+mv new.txt replaced.txt
+! exists new.txt
+cmp replaced.txt first.txt
+
+# Move a single file into an existing directory, keeping its basename.
+mkdir dst
+mv replaced.txt dst
+! exists replaced.txt
+cmp dst/replaced.txt first.txt
+
+# Move multiple files from nested paths into the same directory.
+mkdir src
+cp first.txt src/first.txt
+cp second.txt src/second.txt
+mv src/first.txt src/second.txt dst
+! exists src/first.txt src/second.txt
+cmp dst/first.txt first.txt
+cmp dst/second.txt second.txt
+
+# Resolve both sources and destinations relative to the script directory.
+cd dst
+mv first.txt second.txt ../src
+! exists first.txt second.txt
+cmp ../src/first.txt ../first.txt
+cmp ../src/second.txt ../second.txt
+
+# Directories can still be renamed, or moved into an existing directory.
+cd ..
+mv src renamed
+! exists src
+cmp renamed/first.txt first.txt
+mv renamed dst
+! exists renamed
+cmp dst/renamed/first.txt first.txt
+cmp dst/renamed/second.txt second.txt
+
+-- first.txt --
+first file
+-- second.txt --
+second file

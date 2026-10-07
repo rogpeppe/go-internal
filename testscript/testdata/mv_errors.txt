@@ -1,0 +1,34 @@
+# Invalid invocations fail with the usage or unsupported-negation message.
+! testscript noargs
+stdout 'usage: mv src\.\.\. dst'
+! testscript onearg
+stdout 'usage: mv src\.\.\. dst'
+! testscript negation
+stdout 'unsupported: ! mv'
+
+# Multiple sources require an existing destination directory.
+! testscript missing
+stdout 'mv: destination .*missing is not a directory'
+unquote file/script.txt
+! testscript file
+stdout 'mv: destination .*destination.txt is not a directory'
+
+# A missing source still causes the script to fail.
+! testscript source
+stdout 'FAIL: .*rename .*missing.txt'
+
+-- noargs/script.txt --
+mv
+-- onearg/script.txt --
+mv one.txt
+-- negation/script.txt --
+! mv one.txt two.txt
+-- missing/script.txt --
+mv one.txt two.txt missing
+-- file/script.txt --
+>mv one.txt two.txt destination.txt
+>-- destination.txt --
+>destination
+-- source/script.txt --
+mkdir dst
+mv missing.txt dst
