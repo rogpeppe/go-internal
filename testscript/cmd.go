@@ -75,7 +75,7 @@ func (ts *TestScript) cmdChmod(neg bool, args []string) {
 	if neg {
 		ts.Fatalf("unsupported: ! chmod")
 	}
-	if len(args) != 2 {
+	if len(args) < 2 {
 		ts.Fatalf("usage: chmod perm paths...")
 	}
 	perm, err := strconv.ParseUint(args[0], 8, 32)

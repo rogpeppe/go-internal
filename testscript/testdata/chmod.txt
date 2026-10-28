@@ -1,0 +1,21 @@
+# Keep the existing single-path form.
+chmod 444 first
+exists -readonly first
+
+# chmod accepts all paths in one invocation.
+chmod 444 first second
+exists -readonly first second
+
+# Relative and absolute paths, including spaces, remain supported.
+chmod 666 first second
+mkdir nested
+cp first nested/third
+cp second 'space file'
+cd nested
+chmod 444 third $WORK/second '../space file'
+exists -readonly third $WORK/second '../space file'
+
+-- first --
+alpha
+-- second --
+beta
