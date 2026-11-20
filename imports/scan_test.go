@@ -61,8 +61,43 @@ func TestScanStar(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := []string{"import1", "import2", "import3", "import4"}
+	want := []string{"import1", "import2", "import3", "import4", "import5"}
 	if !reflect.DeepEqual(imports, want) {
 		t.Errorf("ScanDir testdata/import1:\nhave %v\nwant %v", imports, want)
+	}
+}
+
+func TestScanAndroid(t *testing.T) {
+	imports, _, err := ScanDir("testdata/import1", map[string]bool{"android": true, "arm64": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"import1", "import5"}
+	if !reflect.DeepEqual(imports, want) {
+		t.Errorf("ScanDir testdata/import1:\nhave %v\nwant %v", imports, want)
+	}
+}
+
+func TestMatchFileAndroid(t *testing.T) {
+	android := map[string]bool{"android": true, "arm64": true}
+	linux := map[string]bool{"linux": true, "arm64": true}
+	for _, tt := range []struct {
+		name string
+		tags map[string]bool
+		want bool
+	}{
+		{"file_linux.go", android, true},
+		{"file_linux_test.go", android, true},
+		{"file_linux_arm64.go", android, true},
+		{"file_linux_arm64_test.go", android, true},
+		{"file_linux_amd64.go", android, false},
+		{"file_linux_amd64_test.go", android, false},
+		{"file_android.go", linux, false},
+		{"file_linux_arm64.go", linux, true},
+		{"file_linux_amd64.go", map[string]bool{"*": true}, true},
+	} {
+		if got := MatchFile(tt.name, tt.tags); got != tt.want {
+			t.Errorf("MatchFile(%q, %v) = %t; want %t", tt.name, tt.tags, got, tt.want)
+		}
 	}
 }
