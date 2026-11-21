@@ -7,8 +7,10 @@ package testscript
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -25,32 +27,32 @@ import (
 // Keep list and the implementations below sorted by name.
 //
 // NOTE: If you make changes here, update doc.go.
-var scriptCmds = map[string]func(*TestScript, bool, []string){
-	"cd":        (*TestScript).cmdCd,
-	"chmod":     (*TestScript).cmdChmod,
-	"cmp":       (*TestScript).cmdCmp,
-	"cmpenv":    (*TestScript).cmdCmpenv,
-	"cp":        (*TestScript).cmdCp,
-	"env":       (*TestScript).cmdEnv,
+var scriptCmds = map[string]scriptCmd{
+	"cd":        boolCmd((*TestScript).cmdCd),
+	"chmod":     boolCmd((*TestScript).cmdChmod),
+	"cmp":       boolCmd((*TestScript).cmdCmp),
+	"cmpenv":    boolCmd((*TestScript).cmdCmpenv),
+	"cp":        boolCmd((*TestScript).cmdCp),
+	"env":       boolCmd((*TestScript).cmdEnv),
 	"exec":      (*TestScript).cmdExec,
-	"exists":    (*TestScript).cmdExists,
-	"grep":      (*TestScript).cmdGrep,
-	"kill":      (*TestScript).cmdKill,
-	"mkdir":     (*TestScript).cmdMkdir,
-	"mv":        (*TestScript).cmdMv,
-	"rm":        (*TestScript).cmdRm,
-	"skip":      (*TestScript).cmdSkip,
-	"stderr":    (*TestScript).cmdStderr,
-	"stdin":     (*TestScript).cmdStdin,
-	"stdout":    (*TestScript).cmdStdout,
-	"ttyin":     (*TestScript).cmdTtyin,
-	"ttyout":    (*TestScript).cmdTtyout,
-	"stop":      (*TestScript).cmdStop,
-	"symlink":   (*TestScript).cmdSymlink,
-	"unix2dos":  (*TestScript).cmdUNIX2DOS,
-	"unquote":   (*TestScript).cmdUnquote,
-	"wait":      (*TestScript).cmdWait,
-	"waitmatch": (*TestScript).cmdWaitMatch,
+	"exists":    boolCmd((*TestScript).cmdExists),
+	"grep":      boolCmd((*TestScript).cmdGrep),
+	"kill":      boolCmd((*TestScript).cmdKill),
+	"mkdir":     boolCmd((*TestScript).cmdMkdir),
+	"mv":        boolCmd((*TestScript).cmdMv),
+	"rm":        boolCmd((*TestScript).cmdRm),
+	"skip":      boolCmd((*TestScript).cmdSkip),
+	"stderr":    boolCmd((*TestScript).cmdStderr),
+	"stdin":     boolCmd((*TestScript).cmdStdin),
+	"stdout":    boolCmd((*TestScript).cmdStdout),
+	"ttyin":     boolCmd((*TestScript).cmdTtyin),
+	"ttyout":    boolCmd((*TestScript).cmdTtyout),
+	"stop":      boolCmd((*TestScript).cmdStop),
+	"symlink":   boolCmd((*TestScript).cmdSymlink),
+	"unix2dos":  boolCmd((*TestScript).cmdUNIX2DOS),
+	"unquote":   boolCmd((*TestScript).cmdUnquote),
+	"wait":      boolCmd((*TestScript).cmdWait),
+	"waitmatch": boolCmd((*TestScript).cmdWaitMatch),
 }
 
 // cd changes to a different directory.
@@ -231,7 +233,7 @@ func (ts *TestScript) cmdEnv(neg bool, args []string) {
 var backgroundSpecifier = regexp.MustCompile(`^&([a-zA-Z_0-9]+&)?$`)
 
 // exec runs the given command.
-func (ts *TestScript) cmdExec(neg bool, args []string) {
+func (ts *TestScript) cmdExec(mode CmdMode, args []string) {
 	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
 		ts.Fatalf("usage: exec program [args...] [&]")
 	}
@@ -243,7 +245,7 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 			ts.Fatalf("duplicate background process name %q", bgName)
 		}
 		var bg backgroundCmd
-		bg, err = ts.execBackground(bgName, neg, args[0], args[1:len(args)-1]...)
+		bg, err = ts.execBackground(bgName, mode, args[0], args[1:len(args)-1]...)
 		if err == nil {
 			ts.background = append(ts.background, bg)
 		}
@@ -256,7 +258,7 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 		if ts.stderr != "" {
 			fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
 		}
-		if err == nil && neg {
+		if err == nil && mode == CmdWantFailure {
 			ts.Fatalf("unexpected command success")
 		}
 	}
@@ -265,10 +267,15 @@ func (ts *TestScript) cmdExec(neg bool, args []string) {
 		fmt.Fprintf(&ts.log, "[%v]\n", err)
 		if ts.ctxt.Err() != nil {
 			ts.Fatalf("test timed out while running command")
-		} else if !neg {
+		} else if mode == CmdWantSuccess || (mode == CmdWantEither && !isExitError(err)) {
 			ts.Fatalf("unexpected command failure")
 		}
 	}
+}
+
+func isExitError(err error) bool {
+	var exitErr *exec.ExitError
+	return errors.As(err, &exitErr)
 }
 
 // exists checks that the list of files exists.
@@ -620,16 +627,14 @@ func (ts *TestScript) waitBackgroundOne(bgName string) {
 	if ts.stderr != "" {
 		fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
 	}
-	// Note: ignore bg.neg, which only takes effect on the non-specific
-	// wait command.
 	if bg.cmd.ProcessState.Success() {
-		if bg.neg {
+		if bg.mode == CmdWantFailure {
 			ts.Fatalf("unexpected command success")
 		}
 	} else {
 		if ts.ctxt.Err() != nil {
 			ts.Fatalf("test timed out while running command")
-		} else if !bg.neg {
+		} else if bg.mode == CmdWantSuccess {
 			ts.Fatalf("unexpected command failure")
 		}
 	}
@@ -679,13 +684,13 @@ func (ts *TestScript) waitBackground(checkStatus bool) {
 			continue
 		}
 		if bg.cmd.ProcessState.Success() {
-			if bg.neg {
+			if bg.mode == CmdWantFailure {
 				ts.Fatalf("unexpected command success")
 			}
 		} else {
 			if ts.ctxt.Err() != nil {
 				ts.Fatalf("test timed out while running command")
-			} else if !bg.neg {
+			} else if bg.mode == CmdWantSuccess {
 				ts.Fatalf("unexpected command failure")
 			}
 		}

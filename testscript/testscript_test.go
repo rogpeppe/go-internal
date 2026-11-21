@@ -185,6 +185,14 @@ func TestScripts(t *testing.T) {
 	Run(t, Params{
 		UpdateScripts: os.Getenv("TESTSCRIPT_UPDATE") != "",
 		Dir:           "testdata",
+		CmdsWithMode: map[string]func(*TestScript, CmdMode, []string){
+			"showmode": func(ts *TestScript, mode CmdMode, args []string) {
+				fmt.Fprintf(ts.Stdout(), "mode %q\n", mode)
+				ts.SetCmdWithMode("localmode", func(ts *TestScript, mode CmdMode, args []string) {
+					fmt.Fprintf(ts.Stdout(), "local %q\n", mode)
+				})
+			},
+		},
 		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
 			"setSpecialVal":    setSpecialVal,
 			"ensureSpecialVal": ensureSpecialVal,

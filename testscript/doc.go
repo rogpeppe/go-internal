@@ -99,6 +99,11 @@ The command prefix ! indicates that the command on the rest of the line
 (typically go or a matching predicate) must fail, not succeed. Only certain
 commands support this prefix. They are indicated below by [!] in the synopsis.
 
+The command prefix ? allows an executable to exit successfully or unsuccessfully.
+For example, "? exec tool -help" can be followed by a check on stdout or stderr.
+Commands registered with [Main], [Params.CmdsWithMode] or [TestScript.SetCmdWithMode]
+can also use this prefix.
+
 The command prefix [cond] indicates that the command on the rest of the line
 should only run when the condition is satisfied. The predefined conditions are:
 
@@ -152,9 +157,9 @@ The predefined commands are:
     With no arguments, print the environment (useful for debugging).
     Otherwise add the listed key=value pairs to the environment.
 
-  - [!] exec program [args...] [&]
+  - [!|?] exec program [args...] [&]
     Run the given executable program with the arguments.
-    It must (or must not) succeed.
+    With ! it must fail. With ? either exit status is accepted.
     Note that 'exec' does not terminate the script (unlike in Unix shells).
 
     If the last token is '&', the program executes in the background. The standard
