@@ -90,11 +90,11 @@ func testingMRun(m TestingM, commands map[string]func()) int {
 		if err != nil {
 			log.Fatalf("could not set up %s in $PATH: %v", name, err)
 		}
-		scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
+		scriptCmds[name] = func(ts *TestScript, mode CmdMode, args []string) {
 			if ts.params.RequireExplicitExec {
 				ts.Fatalf("use 'exec %s' rather than '%s' (because RequireExplicitExec is enabled)", name, name)
 			}
-			ts.cmdExec(neg, append([]string{name}, args...))
+			ts.cmdExec(mode, append([]string{name}, args...))
 		}
 	}
 	return m.Run()

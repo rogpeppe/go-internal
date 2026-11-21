@@ -130,6 +130,30 @@ func (e *Env) T() T {
 	return e.ts.t
 }
 
+// CmdMode describes the exit status expected by a script command.
+type CmdMode string
+
+const (
+	CmdWantSuccess CmdMode = ""  // The command should succeed.
+	CmdWantFailure CmdMode = "!" // The command should fail.
+	CmdWantEither  CmdMode = "?" // Either exit status is acceptable.
+)
+
+type scriptCmd func(*TestScript, CmdMode, []string)
+
+// A bool callback can distinguish success from failure, but cannot express either.
+func boolCmd(cmd func(*TestScript, bool, []string)) scriptCmd {
+	if cmd == nil {
+		return nil
+	}
+	return func(ts *TestScript, mode CmdMode, args []string) {
+		if mode == CmdWantEither {
+			ts.Fatalf("command does not support the ? prefix")
+		}
+		cmd(ts, mode == CmdWantFailure, args)
+	}
+}
+
 // Params holds parameters for a call to Run.
 type Params struct {
 	// Dir holds the name of the directory holding the scripts.
@@ -158,6 +182,10 @@ type Params struct {
 	// Cmds holds a map of commands available to the script.
 	// It will only be consulted for commands not part of the standard set.
 	Cmds map[string]func(ts *TestScript, neg bool, args []string)
+
+	// CmdsWithMode holds commands that accept the ?, !, or empty prefix.
+	// A command registered in Cmds takes precedence if both maps contain it.
+	CmdsWithMode map[string]func(ts *TestScript, mode CmdMode, args []string)
 
 	// TestWork specifies that working directories should be
 	// left intact for later inspection.
@@ -395,7 +423,7 @@ type TestScript struct {
 	// via SetCmd. It takes precedence over Params.Cmds but not over the
 	// builtin commands. It is only ever accessed from the test's own
 	// goroutine, so needs no locking.
-	localCmds map[string]func(*TestScript, bool, []string)
+	localCmds map[string]scriptCmd
 
 	stdin         string            // standard input to next 'go' command; set by 'stdin' command.
 	stdout        string            // standard output from last 'go' command; for 'stdout' command
@@ -432,7 +460,7 @@ type backgroundCmd struct {
 	stdout *backgroundOutput
 	stderr *backgroundOutput
 	wait   <-chan struct{}
-	neg    bool // if true, cmd should fail
+	mode   CmdMode // checked when the script waits for this process
 }
 
 func writeFile(name string, data []byte, perm fs.FileMode, excl bool) error {
@@ -462,12 +490,18 @@ func (ts *TestScript) Name() string { return ts.name }
 // A command registered with SetCmd takes precedence over a command of the
 // same name in [Params.Cmds] but cannot override a builtin command.
 func (ts *TestScript) SetCmd(name string, cmd func(ts *TestScript, neg bool, args []string)) {
+	ts.SetCmdWithMode(name, boolCmd(cmd))
+}
+
+// SetCmdWithMode is like SetCmd but passes the script's expected exit status
+// to the command. Passing nil removes either kind of local registration.
+func (ts *TestScript) SetCmdWithMode(name string, cmd func(ts *TestScript, mode CmdMode, args []string)) {
 	if cmd == nil {
 		delete(ts.localCmds, name)
 		return
 	}
 	if ts.localCmds == nil {
-		ts.localCmds = make(map[string]func(*TestScript, bool, []string))
+		ts.localCmds = make(map[string]scriptCmd)
 	}
 	ts.localCmds[name] = cmd
 }
@@ -751,26 +785,16 @@ func (ts *TestScript) runLine(line string) (runOK bool) {
 		}
 	}
 
-	// Command prefix ! means negate the expectations about this command:
-	// go command should fail, match should not be found, etc.
-	neg := false
-	if args[0] == "!" {
-		neg = true
+	mode := CmdWantSuccess
+	if args[0] == "!" || args[0] == "?" {
+		mode = CmdMode(args[0])
 		args = args[1:]
 		if len(args) == 0 {
-			ts.Fatalf("! on line by itself")
+			ts.Fatalf("%s on line by itself", mode)
 		}
 	}
 
-	// Run command. Builtins take precedence, then commands registered
-	// for this test via SetCmd, then the static Params.Cmds.
-	cmd := scriptCmds[args[0]]
-	if cmd == nil {
-		cmd = ts.localCmds[args[0]]
-	}
-	if cmd == nil {
-		cmd = ts.params.Cmds[args[0]]
-	}
+	cmd := ts.lookupCmd(args[0])
 	if cmd == nil {
 		// try to find spelling corrections. We arbitrarily limit the number of
 		// corrections, to not be too noisy.
@@ -784,7 +808,7 @@ func (ts *TestScript) runLine(line string) (runOK bool) {
 		}
 	}
 	ts.callBuiltinCmd(func() {
-		cmd(ts, neg, args[1:])
+		cmd(ts, mode, args[1:])
 	})
 	return true
 }
@@ -806,18 +830,23 @@ func (ts *TestScript) callBuiltinCmd(runCmd func()) {
 	runCmd()
 }
 
+// Builtins take precedence, then per-script registrations, then static commands.
+func (ts *TestScript) lookupCmd(name string) scriptCmd {
+	if cmd := scriptCmds[name]; cmd != nil {
+		return cmd
+	}
+	if cmd := ts.localCmds[name]; cmd != nil {
+		return cmd
+	}
+	if cmd := ts.params.Cmds[name]; cmd != nil {
+		return boolCmd(cmd)
+	}
+	return ts.params.CmdsWithMode[name]
+}
+
 func (ts *TestScript) cmdSuggestions(name string) []string {
-	// special case: spell-correct `!cmd` to `! cmd`
-	if strings.HasPrefix(name, "!") {
-		if _, ok := scriptCmds[name[1:]]; ok {
-			return []string{"! " + name[1:]}
-		}
-		if _, ok := ts.localCmds[name[1:]]; ok {
-			return []string{"! " + name[1:]}
-		}
-		if _, ok := ts.params.Cmds[name[1:]]; ok {
-			return []string{"! " + name[1:]}
-		}
+	if len(name) > 1 && (name[0] == '!' || name[0] == '?') && ts.lookupCmd(name[1:]) != nil {
+		return []string{name[:1] + " " + name[1:]}
 	}
 	var candidates []string
 	for c := range scriptCmds {
@@ -831,6 +860,11 @@ func (ts *TestScript) cmdSuggestions(name string) []string {
 		}
 	}
 	for c := range ts.params.Cmds {
+		if misspell.AlmostEqual(name, c) {
+			candidates = append(candidates, c)
+		}
+	}
+	for c := range ts.params.CmdsWithMode {
 		if misspell.AlmostEqual(name, c) {
 			candidates = append(candidates, c)
 		}
@@ -1090,7 +1124,7 @@ func (ts *TestScript) exec(command string, args ...string) (stdout, stderr strin
 
 // execBackground starts the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env, as a background command with the given name.
-func (ts *TestScript) execBackground(name string, neg bool, command string, args ...string) (backgroundCmd, error) {
+func (ts *TestScript) execBackground(name string, mode CmdMode, command string, args ...string) (backgroundCmd, error) {
 	if ts.ttyin != "" {
 		return backgroundCmd{}, errors.New("ttyin is not supported by background commands")
 	}
@@ -1105,7 +1139,7 @@ func (ts *TestScript) execBackground(name string, neg bool, command string, args
 		stdout: newBackgroundOutput(),
 		stderr: newBackgroundOutput(),
 		wait:   wait,
-		neg:    neg,
+		mode:   mode,
 	}
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)

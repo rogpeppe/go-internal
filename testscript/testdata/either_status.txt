@@ -1,0 +1,41 @@
+# Either exit status is acceptable, for registered and explicit commands.
+? status 0
+? status 7
+? exec status 0
+? exec status 7
+
+# Both forms of wait use the expectation from the command that was started.
+? status 1 &named&
+wait named
+? exec status 0 &
+? exec status 1 &
+wait
+
+# A command's output can still be asserted.
+? fprintargs stdout matched
+stdout '^matched$'
+
+# Custom commands that accept a mode see all three prefixes.
+showmode
+stdout 'mode ""'
+! showmode
+stdout 'mode "!"'
+? showmode
+stdout 'mode "\?"'
+? localmode
+stdout 'local "\?"'
+
+# Syntax, unsupported commands, and failure to start are still errors.
+! testscript -files missing.txt
+stdout 'unexpected command failure'
+! testscript -files unsupported.txt
+stdout 'command does not support the \? prefix'
+! testscript -files prefix.txt
+stdout '\? on line by itself'
+
+-- missing.txt --
+? exec definitely-missing-testscript-executable
+-- unsupported.txt --
+? some-param-cmd
+-- prefix.txt --
+?
