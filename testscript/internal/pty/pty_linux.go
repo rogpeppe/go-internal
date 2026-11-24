@@ -9,7 +9,7 @@ import (
 
 func ptyName(f *os.File) (string, error) {
 	var out uint32
-	err := ioctl(f, "TIOCGPTN", syscall.TIOCGPTN, uintptr(unsafe.Pointer(&out)))
+	err := ioctl(f, "TIOCGPTN", syscall.TIOCGPTN, unsafe.Pointer(&out))
 	if err != nil {
 		return "", err
 	}
@@ -22,5 +22,5 @@ func ptyGrant(f *os.File) error {
 
 func ptyUnlock(f *os.File) error {
 	var zero int
-	return ioctl(f, "TIOCSPTLCK", syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&zero)))
+	return ioctl(f, "TIOCSPTLCK", syscall.TIOCSPTLCK, unsafe.Pointer(&zero))
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"unsafe"
 )
 
 const Supported = true
@@ -52,8 +53,8 @@ func Open() (pty, tty *os.File, err error) {
 	return p, t, nil
 }
 
-func ioctl(f *os.File, name string, cmd, ptr uintptr) error {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), cmd, ptr)
+func ioctl(f *os.File, name string, cmd uintptr, ptr unsafe.Pointer) error {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), cmd, uintptr(ptr))
 	if err != 0 {
 		return fmt.Errorf("%s ioctl failed: %v", name, err)
 	}
