@@ -14,7 +14,7 @@ func ptyName(f *os.File) (string, error) {
 	const TIOCPTYGNAME_PARM_LEN = (syscall.TIOCPTYGNAME >> 16) & IOCPARM_MASK
 	out := make([]byte, TIOCPTYGNAME_PARM_LEN)
 
-	err := ioctl(f, "TIOCPTYGNAME", syscall.TIOCPTYGNAME, uintptr(unsafe.Pointer(&out[0])))
+	err := ioctl(f, "TIOCPTYGNAME", syscall.TIOCPTYGNAME, unsafe.Pointer(&out[0]))
 	if err != nil {
 		return "", err
 	}
@@ -24,9 +24,9 @@ func ptyName(f *os.File) (string, error) {
 }
 
 func ptyGrant(f *os.File) error {
-	return ioctl(f, "TIOCPTYGRANT", syscall.TIOCPTYGRANT, 0)
+	return ioctl(f, "TIOCPTYGRANT", syscall.TIOCPTYGRANT, nil)
 }
 
 func ptyUnlock(f *os.File) error {
-	return ioctl(f, "TIOCPTYUNLK", syscall.TIOCPTYUNLK, 0)
+	return ioctl(f, "TIOCPTYUNLK", syscall.TIOCPTYUNLK, nil)
 }
